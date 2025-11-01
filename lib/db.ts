@@ -38,5 +38,19 @@ export async function initDatabase() {
     )
   `);
 
+  // Create invite_codes table for user invitations
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS invite_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      email TEXT,
+      used_by TEXT,
+      created_by TEXT,
+      used_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT
+    )
+  `);
+
   console.log('Database initialized successfully');
 }

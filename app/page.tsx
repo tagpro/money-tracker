@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Transaction, InterestRate } from '@/lib/types';
+import { useSession, signOut } from '@/lib/auth/client';
 
 export default function Home() {
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [interestRates, setInterestRates] = useState<InterestRate[]>([]);
   const [balance, setBalance] = useState({ balance: 0, principal: 0, accruedInterest: 0 });
@@ -23,12 +27,22 @@ export default function Home() {
   const [balanceDate, setBalanceDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!isPending && !session) {
+      router.push('/login');
+    }
+  }, [session, isPending, router]);
 
   useEffect(() => {
-    fetchBalance();
-  }, [balanceDate, transactions, interestRates]);
+    if (session) {
+      fetchData();
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (session) {
+      fetchBalance();
+    }
+  }, [balanceDate, transactions, interestRates, session]);
 
   async function fetchData() {
     try {
@@ -152,7 +166,12 @@ export default function Home() {
     }
   }
 
-  if (loading) {
+  async function handleSignOut() {
+    await signOut();
+    router.push('/login');
+  }
+
+  if (isPending || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>
@@ -160,17 +179,39 @@ export default function Home() {
     );
   }
 
+  if (!session) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900">Loan Tracker</h1>
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            Export CSV
-          </button>
+          <div className="flex gap-2">
+            <a
+              href="/invites"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            >
+              Manage Invites
+            </a>
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-4 text-sm text-gray-600">
+          Signed in as: {session.user.email}
         </div>
 
         {/* Balance Display */}
