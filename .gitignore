@@ -5,6 +5,7 @@ node_modules/
 
 # Testing
 coverage/
+test-interest.js
 
 # Next.js
 .next/
@@ -14,15 +15,20 @@ dist/
 
 # Production
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Misc
 .DS_Store
 *.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # Local env files
 .env
@@ -43,3 +49,26 @@ next-env.d.ts
 *.db-shm
 *.db-wal
 local.db
+
+# Fly.io
+fly.toml.backup
+.fly/
+
+# Deployment logs
+deploy.log
+
+# Editor directories and files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+Thumbs.db
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+
