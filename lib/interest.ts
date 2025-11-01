@@ -59,12 +59,13 @@ export function calculateBalance(
       accruedInterest += dailyInterest;
     }
 
-    // Check if we need to compound (end of month)
+    // Check if we need to compound (first day of new month)
     const nextDay = new Date(currentDate);
     nextDay.setDate(nextDay.getDate() + 1);
     
-    if (nextDay.getMonth() !== currentDate.getMonth() || nextDay > endDate) {
-      // Compound the interest
+    // Only compound if the next day is the start of a new month
+    if (nextDay.getMonth() !== currentDate.getMonth()) {
+      // Compound the interest at the end of the month
       balance += accruedInterest;
       principal += accruedInterest;
       accruedInterest = 0;
