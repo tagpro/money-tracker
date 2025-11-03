@@ -115,7 +115,8 @@ app/
 │   ├── invites/              # Invite management (admin only)
 │   ├── balance/              # Balance calculation
 │   ├── export/               # CSV export with daily interest
-│   └── init/                 # Database initialization
+│   ├── accrue-interest/      # API to manually trigger interest accrual (POST)
+│   └── init/                 # Database initialization (deprecated - use migrations)
 ├── login/                    # Login page
 ├── signup/                   # Signup page (with invite verification)
 ├── invites/                  # Admin invite management UI
@@ -159,9 +160,14 @@ drizzle/
 - **Formula**: Daily compound interest
 - **Calculation**: `dailyRate = (annualRate / 100) / 365; interest = balance * dailyRate`
 - **Accrual**: Interest calculated daily, **added to account on 1st of each month**
-- **Script**: `npm run add-accrued-interest` (run monthly)
-- **Transaction**: Accrued interest creates a new "deposit" transaction
-- **Location**: `scripts/add-accrued-interest.ts`
+- **Manual Trigger**: 
+  - Script: `npm run add-accrued-interest` (CLI)
+  - API: `POST /api/accrue-interest` (Web UI button)
+- **Transaction**: Accrued interest creates a new "interest" type transaction
+- **Location**: 
+  - Script: `scripts/add-accrued-interest.ts`
+  - API: `app/api/accrue-interest/route.ts`
+- **UI**: Button in main app to trigger interest accrual and update display
 
 ### CSV Export
 - Shows ALL days from initial deposit to current date
@@ -223,8 +229,11 @@ npm run db:generate
 # Or manually
 npx drizzle-kit generate --dialect=sqlite --schema=./lib/db/schema/index.ts
 
-# Add monthly interest
+# Add monthly interest (CLI)
 npm run add-accrued-interest
+
+# Or use the API endpoint (Web UI)
+curl -X POST http://localhost:3000/api/accrue-interest
 ```
 
 ### Deployment
@@ -312,13 +321,28 @@ await db.select({ count: count() }).from(transactions);
 ### Build Errors
 
 **Error**: `Cannot find module '@tailwindcss/postcss'`
-- Fix: Use `tailwindcss` in postcss.config.mjs (not `@tailwindcss/postcss`)
+- **Root Cause**: Next.js 16 caches module resolution
+- **Fix**: 
+  1. Delete `.next` folder: `rm -rf .next`
+  2. Verify `postcss.config.mjs` uses `tailwindcss` (not `@tailwindcss/postcss`)
+  3. Restart dev server
+- **Why it happens**: Intermittent issue with Turbopack hot reloading
 
 **Error**: `useSearchParams() should be wrapped in a suspense boundary`
 - Fix: Wrap component in `<Suspense>`
 
 **Error**: `Do not know how to serialize a BigInt`
 - Fix: Convert to Number: `Number(result.lastInsertRowid)`
+
+**Error**: `Cannot read properties of undefined (reading 'split')` in parseDate
+- **Root Cause**: API receiving undefined/null date parameter
+- **Fix**: Add validation before calling functions that expect dates:
+```typescript
+if (!dateStr) {
+  throw new Error('Date string is required');
+}
+```
+- **Applies to**: All date parsing in `lib/interest.ts`
 
 ### Runtime Errors
 
@@ -350,17 +374,20 @@ await db.select({ count: count() }).from(transactions);
 3. Update fly.toml build args
 4. Update Dockerfile with NEXT_PUBLIC_APP_URL
 5. Deploy: `fly deploy`
-6. Run auth migration on Turso
-7. Initialize app tables: `curl https://loan-tracker.fly.dev/api/init`
-8. Create first admin user
-9. Create invites for friends
+6. Run consolidated migration on Turso:
+   ```bash
+   cat drizzle/0000_consolidated_all_tables.sql | turso db shell <db-name>
+   ```
+7. Create first admin user (signup directly)
+8. Create invites for friends
 
 ### Subsequent Deploys
-1. Test locally
-2. Run tests
-3. Deploy
-4. Verify deployment
-5. Check logs if issues
+1. Test locally: `npm run dev`
+2. Run tests: `npm test`
+3. Build locally: `npm run build` (verify no errors)
+4. Deploy: `fly deploy`
+5. Verify deployment: Check homepage loads
+6. Check logs if issues: `fly logs`
 
 ## File Conventions
 
@@ -391,7 +418,10 @@ await db.select({ count: count() }).from(transactions);
 - Interest rate changes
 - CSV export
 - Invite creation and use
-- Monthly interest accrual
+- Monthly interest accrual (both CLI and API)
+- Accrue interest button in UI
+- Balance display shows correct accrued interest
+- Transaction history includes interest transactions
 
 ## Security Best Practices
 
@@ -446,12 +476,14 @@ await db.select({ count: count() }).from(transactions);
 ❌ Don't use Kysely with Better Auth
 ❌ Don't forget Suspense for useSearchParams()
 ❌ Don't serialize BigInt to JSON
-❌ Don't use @tailwindcss/postcss
+❌ Don't use @tailwindcss/postcss (use tailwindcss v3)
 ❌ Don't forget NEXT_PUBLIC_* build args
 ❌ Don't commit .env.local
 ❌ Don't reuse invite codes
 ❌ Don't skip tests
 ❌ Don't deploy without testing locally
+❌ Don't use `/api/init` endpoint (deprecated - use migrations)
+❌ Don't pass undefined/null dates to parseDate function
 
 ## Important Do's
 
@@ -464,6 +496,9 @@ await db.select({ count: count() }).from(transactions);
 ✅ Generate new invite codes
 ✅ Document changes
 ✅ Follow TypeScript strict mode
+✅ Use consolidated migrations for database setup
+✅ Validate date parameters before parsing
+✅ Delete `.next` folder if TailwindCSS errors appear
 
 ## References
 
@@ -474,8 +509,68 @@ await db.select({ count: count() }).from(transactions);
 - Fly.io: https://fly.io/docs/
 - Safe-fin (reference): https://github.com/anmol-fzr/safe-fin
 
+## Recent Changes (November 2025)
+
+### Interest Accrual Improvements
+- ✅ Added `POST /api/accrue-interest` endpoint for manual triggering
+- ✅ UI button in main app to accrue interest on-demand
+- ✅ Interest transactions now properly added to transaction history
+- ✅ Fixed interest type from "deposit" to "interest" for clarity
+- ✅ Both CLI script and API endpoint available
+
+### Bug Fixes
+- ✅ Fixed parseDate() null/undefined handling
+- ✅ Fixed TailwindCSS intermittent module errors (delete `.next` folder)
+- ✅ Fixed balance calculation to include all transaction types
+- ✅ Fixed accrued interest display showing $0 incorrectly
+
+### Database Migration
+- ✅ Consolidated all tables into single migration file
+- ✅ Deprecated `/api/init` endpoint (use migrations instead)
+- ✅ All database setup now via Drizzle migrations
+
+### Testing
+- ✅ Added comprehensive tests for interest calculation
+- ✅ Tests verify daily interest accrual logic
+- ✅ Tests verify monthly compounding on 1st of month
+- ✅ Tests verify transaction history includes interest
+
+## API Endpoints Reference
+
+### Authentication
+- `POST /api/auth/sign-up/email` - Create account
+- `POST /api/auth/sign-in/email` - Sign in
+- `GET /api/auth/get-session` - Get current session
+
+### Transactions
+- `GET /api/transactions` - List all transactions
+- `POST /api/transactions` - Create transaction
+- `PUT /api/transactions/:id` - Update transaction
+- `DELETE /api/transactions/:id` - Delete transaction
+
+### Interest Rates
+- `GET /api/interest-rates` - List all rates
+- `POST /api/interest-rates` - Create rate
+- `PUT /api/interest-rates/:id` - Update rate
+- `DELETE /api/interest-rates/:id` - Delete rate
+
+### Balance & Interest
+- `GET /api/balance?date=YYYY-MM-DD` - Get balance at specific date
+- `POST /api/accrue-interest` - Manually trigger interest accrual
+
+### Invites (Admin Only)
+- `GET /api/invites` - List all invites
+- `POST /api/invites` - Create invite code
+- `GET /api/invites/verify?code=XXX` - Verify invite code
+
+### Export
+- `GET /api/export` - Download CSV with daily interest breakdown
+
+### Deprecated
+- `POST /api/init` - Database initialization (use migrations instead)
+
 ---
 
-**Last Updated**: November 2, 2025
-**Version**: 1.0.0
+**Last Updated**: November 3, 2025
+**Version**: 1.1.0
 **Status**: Production Ready ✅
