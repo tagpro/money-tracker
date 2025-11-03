@@ -6,7 +6,13 @@ import { desc, eq } from 'drizzle-orm';
 export async function GET() {
   try {
     const result = await db.select().from(interestRates).orderBy(desc(interestRates.effectiveDate));
-    return NextResponse.json(result);
+    const mapped = result.map(r => ({
+      id: r.id,
+      rate: r.rate,
+      effective_date: r.effectiveDate,
+      created_at: r.createdAt,
+    }));
+    return NextResponse.json(mapped);
   } catch (error) {
     console.error('Error fetching interest rates:', error);
     return NextResponse.json({ error: 'Failed to fetch interest rates' }, { status: 500 });

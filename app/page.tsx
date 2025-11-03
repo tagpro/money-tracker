@@ -380,7 +380,7 @@ export default function Home() {
                     className="flex justify-between items-center p-2 bg-gray-50 rounded"
                   >
                     <span className="text-sm">
-                      {rate.rate}% from {new Date(rate.effective_date).toLocaleDateString()}
+                      {rate.rate}% from {rate.effective_date}
                     </span>
                     <button
                       onClick={() => handleDeleteRate(rate.id!)}
