@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { inviteCodes } from '@/lib/db/schema/app';
+import { eq, isNull, and } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,10 +12,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark invite as used
-    await db.execute({
-      sql: 'UPDATE invite_codes SET used_by = ?, used_at = ? WHERE code = ? AND used_by IS NULL',
-      args: [email, new Date().toISOString(), code],
-    });
+    await db.update(inviteCodes)
+      .set({ 
+        usedBy: email, 
+        usedAt: new Date().toISOString() 
+      })
+      .where(and(
+        eq(inviteCodes.code, code),
+        isNull(inviteCodes.usedBy)
+      ));
 
     return NextResponse.json({ success: true });
   } catch (error) {

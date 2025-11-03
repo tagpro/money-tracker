@@ -1,86 +1,100 @@
-# Interest Calculation Fix & Testing
+# Interest Calculation Bug Fixes - Summary
 
-## Issue Fixed
+## Issues Found ❌
 
-The accrued interest was showing $0.00 on the homepage because the calculation logic was compounding interest prematurely when the target date was reached, even if it was mid-month.
+Through comprehensive testing, we discovered several critical bugs in the interest calculation logic that caused:
+- **Accrued interest showing $0** on the homepage
+- **Principal not including compounded interest** from previous months
+- **Off-by-one-day errors** in calculations
+- **Double compounding** when interest transactions existed
 
-### Root Cause
-In `lib/interest.ts`, line 66 had:
-```typescript
-if (nextDay.getMonth() !== currentDate.getMonth() || nextDay > endDate) {
+## Root Causes
+
+### 1. Timezone Issues
+**Problem**: Date strings ('2024-01-01') were being parsed inconsistently, causing off-by-one-day errors.  
+**Fix**: Created `parseDate()` utility that explicitly parses dates in local time.
+
+### 2. Interest Transaction Handling
+**Problem**: Interest transactions only added to balance, not principal.  
+**Fix**: Interest transactions now add to BOTH balance and principal.
+
+### 3. Double Compounding
+**Problem**: When interest transactions existed (e.g., Feb 1), the system ALSO auto-compounded at end of Jan.  
+**Fix**: Added lookahead logic to skip auto-compounding if tomorrow has an interest transaction.
+
+### 4. Same-Day Interest
+**Problem**: Interest was calculated on the deposit day itself.  
+**Fix**: Interest accrues overnight - not visible until next day.
+
+### 5. Missing Days
+**Problem**: Calculating to Feb 1 only included 30 days of January.  
+**Fix**: Corrected loop logic to include all days properly.
+
+## Changes Made ✅
+
+### `lib/interest.ts`
+- Added `parseDate()` function for consistent date parsing
+- Interest transactions now update both balance AND principal
+- Lookahead check prevents double-compounding
+- Interest only calculates if `currentDate < endDate`
+- All date comparisons use local time
+
+### `__tests__/interest.test.ts`
+- 13 comprehensive tests covering all scenarios
+- Tests for deposits, withdrawals, compounding, interest transactions
+- Edge cases: leap years, missing rates, multiple months
+- All tests passing ✅
+
+## Test Results ✅
+
+```
+Test Suites: 1 passed, 1 total
+Tests:       13 passed, 13 total
+
+✓ Basic Balance Calculations (2 tests)
+✓ Daily Interest Accrual (2 tests)
+✓ Monthly Compounding (2 tests)
+✓ Interest Transactions (3 tests)
+✓ Withdrawals (2 tests)
+✓ Edge Cases (2 tests)
 ```
 
-This meant interest was being compounded both at month-end AND when reaching the target date, causing mid-month accrued interest to be reset to 0.
+## Verified Scenarios
 
-### Fix Applied
-Changed to only compound at actual month boundaries:
-```typescript
-if (nextDay.getMonth() !== currentDate.getMonth()) {
-```
+| Scenario | Before | After | Status |
+|----------|---------|-------|--------|
+| Deposit $10k on Jan 1, check Feb 1 | Principal: $10,000 ❌ | Principal: $10,042.47 ✅ | FIXED |
+| Accrued interest display | $0 ❌ | $1.38 ✅ | FIXED |
+| Interest transaction + auto-compound | Double counted ❌ | Counted once ✅ | FIXED |
+| 31-day month calculation | 30 days ❌ | 31 days ✅ | FIXED |
+| Withdrawal with interest | Missing interest ❌ | Includes interest ✅ | FIXED |
 
-Now accrued interest properly accumulates during the month and only compounds on the 1st of the next month.
+## Impact on Features
 
-## Test Coverage
+### ✅ Homepage Balance
+- Accrued interest now shows correct value
+- Principal includes all compounded interest
+- Total balance = Principal + Current accrued interest
 
-Created comprehensive tests in `__tests__/interest.test.ts` and `test-interest.ts` covering:
+### ✅ Export CSV
+- Daily interest calculations accurate
+- Monthly compounding on correct dates
+- Interest transactions saved properly
 
-1. **Mid-month accrued interest** - Verifies interest accrues without compounding
-2. **Month-end compounding** - Verifies interest compounds correctly on the 1st
-3. **Multiple months** - Verifies compounding over several months
-4. **No interest rate** - Verifies $0 interest when no rate is set
-5. **Daily calculations** - Verifies daily interest formula
-6. **Withdrawals** - Verifies interest recalculates with balance changes  
-7. **Rate changes** - Verifies different rates apply correctly
-8. **Empty transactions** - Edge case handling
-9. **Multiple deposits** - Interest on varying balances
-10. **Interest transactions** - Previously compounded interest is included
+### ✅ Accrue Interest API
+- No more double-compounding
+- Principal updates correctly
+- Transaction history accurate
 
-## Expected Behavior
+## Build Status
 
-### Example: $10,000 deposit on Oct 1, 2024 at 12% annual rate
+✅ **All tests passing** (13/13)  
+✅ **Build successful**  
+✅ **TypeScript clean**  
+✅ **Ready to deploy**
 
-**Oct 15, 2024:**
-- Principal: $10,000.00
-- Accrued Interest: ~$49.32 (15 days × $3.29/day)
-- Total Balance: $10,049.32
+---
 
-**Nov 1, 2024:**
-- Principal: $10,101.92 (original + Oct interest compounded)
-- Accrued Interest: ~$3.32 (1 day in Nov)
-- Total Balance: $10,105.24
-
-**Key Points:**
-- Interest accrues daily at rate/365
-- Compounds monthly on the 1st
-- Accrued interest shows current month's uncompounded interest
-- Principal includes all previously compounded interest
-
-## Running Tests
-
-### Manual Verification
-
-1. Start dev server: `npm run dev`
-2. Add an interest rate
-3. Add a deposit transaction with a past date (e.g., Oct 1)
-4. Check balance mid-month - accrued interest should be > $0
-5. Check balance on 1st of next month - principal should increase
-
-### Automated Tests (when Jest is properly installed)
-
-```bash
-npm test
-```
-
-## Files Modified
-
-- `lib/interest.ts` - Fixed compounding logic
-- `__tests__/interest.test.ts` - Comprehensive test suite
-- `test-interest.ts` - Simple TypeScript test runner
-- `jest.config.js` - Jest configuration
-- `package.json` - Added test scripts
-
-## Deployment
-
-The fix has been deployed to https://loan-tracker.fly.dev/
-
-You should now see proper accrued interest values on the homepage!
+**Date**: November 3, 2025  
+**Files Changed**: lib/interest.ts, __tests__/interest.test.ts  
+**Tests Added**: 13 comprehensive tests

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { inviteCodes } from '@/lib/db/schema/app';
+import { eq } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,24 +12,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ valid: false, error: 'No invite code provided' }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: 'SELECT * FROM invite_codes WHERE code = ?',
-      args: [code],
-    });
+    const result = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code));
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return NextResponse.json({ valid: false, error: 'Invalid invite code' }, { status: 404 });
     }
 
-    const invite = result.rows[0] as any;
+    const invite = result[0];
 
     // Check if already used
-    if (invite.used_by) {
+    if (invite.usedBy) {
       return NextResponse.json({ valid: false, error: 'Invite code already used' }, { status: 400 });
     }
 
     // Check if expired
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+    if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
       return NextResponse.json({ valid: false, error: 'Invite code expired' }, { status: 400 });
     }
 

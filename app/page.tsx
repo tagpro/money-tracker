@@ -166,6 +166,30 @@ export default function Home() {
     }
   }
 
+  async function handleAccrueInterest() {
+    if (!confirm('This will add interest transactions to your history for all past months. Continue?')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch('/api/accrue-interest', {
+        method: 'POST',
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        alert(data.message);
+        fetchData(); // Refresh data
+      } else {
+        alert('Error: ' + (data.error || 'Failed to accrue interest'));
+      }
+    } catch (error) {
+      console.error('Error accruing interest:', error);
+      alert('Failed to accrue interest');
+    }
+  }
+
   async function handleSignOut() {
     await signOut();
     router.push('/login');
@@ -195,6 +219,13 @@ export default function Home() {
             >
               Manage Invites
             </a>
+            <button
+              onClick={handleAccrueInterest}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              title="Add monthly interest to transaction history"
+            >
+              Accrue Interest
+            </button>
             <button
               onClick={handleExport}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
