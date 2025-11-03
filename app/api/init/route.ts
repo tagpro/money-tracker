@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
-import { initDatabase } from '@/lib/db';
 
+/**
+ * @deprecated This endpoint is deprecated. 
+ * Use Drizzle migrations instead:
+ * 
+ * Run: cat drizzle/0000_consolidated_all_tables.sql | turso db shell <db-name>
+ * 
+ * Or apply all migrations: npm run db:push
+ */
 export async function GET() {
-  try {
-    await initDatabase();
-    return NextResponse.json({ message: 'Database initialized successfully' });
-  } catch (error) {
-    console.error('Error initializing database:', error);
-    return NextResponse.json({ error: 'Failed to initialize database', details: String(error) }, { status: 500 });
-  }
+  return NextResponse.json({ 
+    error: 'This endpoint is deprecated. Use Drizzle migrations instead.',
+    instructions: 'Run: cat drizzle/0000_consolidated_all_tables.sql | turso db shell <db-name>'
+  }, { status: 410 }); // 410 Gone
 }
+

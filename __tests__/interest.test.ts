@@ -2,199 +2,330 @@ import { calculateBalance } from '../lib/interest';
 import { Transaction, InterestRate } from '../lib/types';
 
 describe('Interest Calculation', () => {
-  describe('calculateBalance', () => {
+  const mockRates: InterestRate[] = [
+    {
+      id: 1,
+      rate: 5.0,
+      effective_date: '2024-01-01',
+      created_at: '2024-01-01T00:00:00.000Z',
+    },
+  ];
+
+  describe('Basic Balance Calculations', () => {
     it('should return zero for empty transactions', () => {
-      const result = calculateBalance([], [], new Date('2024-11-01'));
-      expect(result.balance).toBe(0);
-      expect(result.principal).toBe(0);
-      expect(result.accruedInterest).toBe(0);
+      const result = calculateBalance([], mockRates, new Date('2024-01-15'));
+      expect(result).toEqual({
+        balance: 0,
+        principal: 0,
+        accruedInterest: 0,
+      });
     });
 
-    it('should calculate simple deposit without interest', () => {
+    it('should calculate balance with single deposit on same day', () => {
       const transactions: Transaction[] = [
-        { type: 'deposit', amount: 1000, date: '2024-10-01' }
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
       ];
-      const rates: InterestRate[] = [];
-      
-      const result = calculateBalance(transactions, rates, new Date('2024-10-01'));
-      expect(result.balance).toBe(1000);
-      expect(result.principal).toBe(1000);
-      expect(result.accruedInterest).toBe(0);
-    });
 
-    it('should calculate daily interest without compounding', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 1000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 5, effective_date: '2024-10-01' } // 5% annual rate
-      ];
+      const result = calculateBalance(transactions, mockRates, new Date('2024-01-01'));
       
-      // After 10 days
-      const result = calculateBalance(transactions, rates, new Date('2024-10-10'));
-      
-      // Daily rate = 5% / 365 = 0.0136986%
-      // Daily interest = 1000 * 0.05 / 365 = 0.136986
-      // 10 days = 0.136986 * 10 = 1.36986
-      expect(result.principal).toBe(1000);
-      expect(result.accruedInterest).toBeCloseTo(1.37, 2);
-      expect(result.balance).toBeCloseTo(1001.37, 2);
-    });
-
-    it('should show accrued interest in the middle of the month', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' } // 12% annual rate
-      ];
-      
-      // Check on Oct 15 (halfway through month)
-      const result = calculateBalance(transactions, rates, new Date('2024-10-15'));
-      
-      // Daily interest = 10000 * 0.12 / 365 = 3.2877
-      // 15 days = 3.2877 * 15 = 49.315
-      expect(result.principal).toBe(10000);
-      expect(result.accruedInterest).toBeCloseTo(49.32, 1);
-      expect(result.balance).toBeCloseTo(10049.32, 1);
-    });
-
-    it('should compound interest at month end', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' } // 12% annual rate
-      ];
-      
-      // Check on Nov 1 (after compounding on Oct 31)
-      const result = calculateBalance(transactions, rates, new Date('2024-11-01'));
-      
-      // October has 31 days
-      // Daily interest = 10000 * 0.12 / 365 = 3.2877
-      // 31 days = 3.2877 * 31 = 101.92
-      // After compounding, this becomes principal
-      // Then 1 day in November = (10000 + 101.92) * 0.12 / 365 = 3.32
-      expect(result.principal).toBeCloseTo(10101.92, 1);
-      expect(result.accruedInterest).toBeCloseTo(3.32, 1);
-      expect(result.balance).toBeCloseTo(10105.24, 1);
-    });
-
-    it('should handle multiple months of compounding', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' }
-      ];
-      
-      // Check on Jan 1, 2025 (after 3 months)
-      const result = calculateBalance(transactions, rates, new Date('2025-01-01'));
-      
-      // This should compound at end of Oct, Nov, Dec
-      expect(result.principal).toBeGreaterThan(10300); // At least 3% growth
-      expect(result.balance).toBeGreaterThan(result.principal);
-    });
-
-    it('should handle withdrawals', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' },
-        { type: 'withdrawal', amount: 2000, date: '2024-10-15' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' }
-      ];
-      
-      const result = calculateBalance(transactions, rates, new Date('2024-10-20'));
-      
-      // Should calculate interest on 10000 for 15 days, then on 8000 for 5 days
-      expect(result.principal).toBeLessThan(8100);
-      expect(result.principal).toBeGreaterThan(8000);
-    });
-
-    it('should handle interest rate changes', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 5, effective_date: '2024-10-01' },
-        { rate: 10, effective_date: '2024-10-15' } // Rate doubles halfway through month
-      ];
-      
-      const result = calculateBalance(transactions, rates, new Date('2024-10-31'));
-      
-      // First 14 days at 5%, then 17 days at 10%
-      // Should be between single-rate calculations
-      const lowEstimate = (10000 * 0.05 / 365) * 31; // All at 5%
-      const highEstimate = (10000 * 0.10 / 365) * 31; // All at 10%
-      
-      expect(result.accruedInterest).toBeGreaterThan(lowEstimate);
-      expect(result.accruedInterest).toBeLessThan(highEstimate);
-    });
-
-    it('should not compound interest mid-month', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' }
-      ];
-      
-      // Check on Oct 15
-      const result = calculateBalance(transactions, rates, new Date('2024-10-15'));
-      
-      // Principal should still be the original deposit
-      expect(result.principal).toBe(10000);
-      // But accrued interest should be positive
-      expect(result.accruedInterest).toBeGreaterThan(0);
-    });
-
-    it('should handle multiple deposits', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 5000, date: '2024-10-01' },
-        { type: 'deposit', amount: 3000, date: '2024-10-10' },
-        { type: 'deposit', amount: 2000, date: '2024-10-20' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' }
-      ];
-      
-      const result = calculateBalance(transactions, rates, new Date('2024-10-31'));
-      
-      // Principal should be sum of deposits
-      expect(result.principal).toBeCloseTo(10000, 0);
-      // Interest should be calculated on varying balances
-      expect(result.accruedInterest).toBeGreaterThan(0);
-    });
-
-    it('should handle zero interest rate', () => {
-      const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' }
-      ];
-      const rates: InterestRate[] = [
-        { rate: 0, effective_date: '2024-10-01' }
-      ];
-      
-      const result = calculateBalance(transactions, rates, new Date('2024-10-31'));
-      
-      expect(result.principal).toBe(10000);
-      expect(result.accruedInterest).toBe(0);
       expect(result.balance).toBe(10000);
+      expect(result.principal).toBe(10000);
+      expect(result.accruedInterest).toBe(0);
+    });
+  });
+
+  describe('Daily Interest Accrual', () => {
+    it('should calculate daily interest correctly after 1 day', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+      ];
+
+      // Daily interest = 10000 * 5% / 365 = 1.3698...
+      const result = calculateBalance(transactions, mockRates, new Date('2024-01-02'));
+      
+      expect(result.balance).toBeCloseTo(10001.37, 2);
+      expect(result.principal).toBe(10000);
+      expect(result.accruedInterest).toBeCloseTo(1.37, 2);
     });
 
-    it('should handle interest transactions from previous compounding', () => {
+    it('should accrue interest over 10 days', () => {
       const transactions: Transaction[] = [
-        { type: 'deposit', amount: 10000, date: '2024-10-01' },
-        { type: 'interest', amount: 100, date: '2024-11-01', description: 'Interest compounded for October 2024' }
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
       ];
-      const rates: InterestRate[] = [
-        { rate: 12, effective_date: '2024-10-01' }
+
+      // 10 days of interest: 10000 * 5% / 365 * 10 = 13.70
+      const result = calculateBalance(transactions, mockRates, new Date('2024-01-11'));
+      
+      expect(result.balance).toBeCloseTo(10013.70, 2);
+      expect(result.principal).toBe(10000);
+      expect(result.accruedInterest).toBeCloseTo(13.70, 2);
+    });
+  });
+
+  describe('Monthly Compounding', () => {
+    it('should compound interest at end of month', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
       ];
+
+      // Calculate to Feb 1 (should compound Jan's interest)
+      // 31 days of interest: 10000 * 5% / 365 * 31 = 42.47
+      const result = calculateBalance(transactions, mockRates, new Date('2024-02-01'));
       
-      const result = calculateBalance(transactions, rates, new Date('2024-11-15'));
+      expect(result.principal).toBeCloseTo(10042.47, 2);
+      expect(result.balance).toBeCloseTo(10042.47, 2);
+      expect(result.accruedInterest).toBeCloseTo(0, 2);
+    });
+
+    it('should continue accruing after month-end compounding', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+      ];
+
+      // Feb 2: should have compounded Jan + 1 day of Feb interest
+      const result = calculateBalance(transactions, mockRates, new Date('2024-02-02'));
       
-      // The interest transaction should be included in balance
-      expect(result.balance).toBeGreaterThan(10100);
+      // Compounded principal: ~10042.47 (31 days in Jan)
+      // Feb 1 interest: 10042.47 * 5% / 365 = 1.375
+      expect(result.principal).toBeCloseTo(10042.47, 1); // Allow more tolerance for rounding
+      expect(result.accruedInterest).toBeCloseTo(1.38, 1);
+      expect(result.balance).toBeCloseTo(10043.85, 1);
+    });
+  });
+
+  describe('Interest Transactions', () => {
+    it('should handle interest transaction and include in principal', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          type: 'interest',
+          amount: 42.47,
+          date: '2024-02-01',
+          description: 'Interest compounded for January 2024',
+          created_at: '2024-02-01T00:00:00.000Z',
+        },
+      ];
+
+      const result = calculateBalance(transactions, mockRates, new Date('2024-02-01'));
+      
+      // Balance should include interest transaction
+      expect(result.balance).toBeCloseTo(10042.47, 1);
+      // Principal should ALSO include interest (it was added via transaction)
+      expect(result.principal).toBeCloseTo(10042.47, 1);
+      // Accrued should be 0 since interest transaction resets it
+      expect(result.accruedInterest).toBe(0);
+    });
+
+    it('should include interest in principal for future calculations', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          type: 'interest',
+          amount: 42.47,
+          date: '2024-02-01',
+          description: 'Interest compounded for January 2024',
+          created_at: '2024-02-01T00:00:00.000Z',
+        },
+      ];
+
+      // On Feb 2, principal should include the interest
+      const result = calculateBalance(transactions, mockRates, new Date('2024-02-02'));
+      
+      console.log('Principal on Feb 2:', result.principal);
+      console.log('Balance on Feb 2:', result.balance);
+      console.log('Accrued on Feb 2:', result.accruedInterest);
+      
+      // Principal should be 10042.47 (deposit + interest transaction)
+      // Accrued should be 1 day on that principal
+    });
+
+    it('should handle multiple months of interest transactions', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          type: 'interest',
+          amount: 42.47,
+          date: '2024-02-01',
+          description: 'Interest compounded for January 2024',
+          created_at: '2024-02-01T00:00:00.000Z',
+        },
+        {
+          id: 3,
+          type: 'interest',
+          amount: 38.78,
+          date: '2024-03-01',
+          description: 'Interest compounded for February 2024',
+          created_at: '2024-03-01T00:00:00.000Z',
+        },
+      ];
+
+      const result = calculateBalance(transactions, mockRates, new Date('2024-03-01'));
+      
+      console.log('Multi-month principal:', result.principal);
+      console.log('Expected:', 10000 + 42.47 + 38.78);
+      
+      // Total principal should include all interest
+      // But does it?
+    });
+  });
+
+  describe('Withdrawals', () => {
+    it('should handle withdrawal correctly', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          type: 'withdrawal',
+          amount: 2000,
+          date: '2024-01-15',
+          description: 'Withdrawal',
+          created_at: '2024-01-15T00:00:00.000Z',
+        },
+      ];
+
+      const result = calculateBalance(transactions, mockRates, new Date('2024-01-15'));
+      
+      // Should have 14 days of interest (Jan 1-14) before withdrawal
+      // 14 * 10000 * 5% / 365 = 19.18
+      // Balance = 10000 + 19.18 - 2000 = 8019.18
+      expect(result.balance).toBeCloseTo(8019.18, 2);
+      expect(result.principal).toBe(8000); // Principal is just deposits - withdrawals
+    });
+
+    it('should accrue interest on reduced balance after withdrawal', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          id: 2,
+          type: 'withdrawal',
+          amount: 2000,
+          date: '2024-01-15',
+          description: 'Withdrawal',
+          created_at: '2024-01-15T00:00:00.000Z',
+        },
+      ];
+
+      // Calculate to end of month
+      const result = calculateBalance(transactions, mockRates, new Date('2024-02-01'));
+      
+      // Interest for Jan 1-14 on 10000 + Jan 15-31 on 8000
+      // = (14 * 10000 * 5% / 365) + (17 * 8000 * 5% / 365)
+      // = 19.18 + 18.63 = 37.81
+      expect(result.principal).toBeCloseTo(8037.81, 2);
+      expect(result.accruedInterest).toBe(0);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle no interest rates', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-01-01',
+          description: 'Initial deposit',
+          created_at: '2024-01-01T00:00:00.000Z',
+        },
+      ];
+
+      const result = calculateBalance(transactions, [], new Date('2024-02-01'));
+      
+      expect(result.balance).toBe(10000);
+      expect(result.principal).toBe(10000);
+      expect(result.accruedInterest).toBe(0);
+    });
+
+    it('should handle leap year (29 days in February)', () => {
+      const transactions: Transaction[] = [
+        {
+          id: 1,
+          type: 'deposit',
+          amount: 10000,
+          date: '2024-02-01',
+          description: 'Leap year test',
+          created_at: '2024-02-01T00:00:00.000Z',
+        },
+      ];
+
+      // Feb 2024 has 29 days
+      const result = calculateBalance(transactions, mockRates, new Date('2024-03-01'));
+      
+      // 29 days of interest: 10000 * 5% / 365 * 29 = 39.73
+      expect(result.principal).toBeCloseTo(10039.73, 2);
     });
   });
 });

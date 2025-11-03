@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { transactions, interestRates } from '@/lib/db/schema/app';
+import { asc } from 'drizzle-orm';
 import { calculateBalance } from '@/lib/interest';
 import { Transaction, InterestRate } from '@/lib/types';
 
@@ -8,13 +10,33 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-    const transactionsResult = await db.execute('SELECT * FROM transactions ORDER BY date ASC');
-    const ratesResult = await db.execute('SELECT * FROM interest_rates ORDER BY effective_date ASC');
+    const transactionsData = await db.select().from(transactions).orderBy(asc(transactions.date));
+    const ratesData = await db.select().from(interestRates).orderBy(asc(interestRates.effectiveDate));
 
-    const transactions = transactionsResult.rows as unknown as Transaction[];
-    const interestRates = ratesResult.rows as unknown as InterestRate[];
+    // Map database results to expected types
+    const mappedTransactions: Transaction[] = transactionsData.map(t => ({
+      id: t.id,
+      type: t.type as 'deposit' | 'withdrawal' | 'interest',
+      amount: t.amount,
+      date: t.date,
+      description: t.description || undefined,
+      created_at: t.createdAt || undefined,
+    }));
 
-    const balance = calculateBalance(transactions, interestRates, new Date(targetDate));
+    const mappedRates: InterestRate[] = ratesData
+      .filter(r => r.effectiveDate) // Filter out any with null/undefined effectiveDate
+      .map(r => ({
+        id: r.id,
+        rate: r.rate,
+        effective_date: r.effectiveDate,
+        created_at: r.createdAt || undefined,
+      }));
+
+    const balance = calculateBalance(
+      mappedTransactions, 
+      mappedRates, 
+      new Date(targetDate)
+    );
 
     return NextResponse.json(balance);
   } catch (error) {

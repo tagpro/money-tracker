@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, rawClient } from '@/lib/db';
+import { inviteCodes } from '@/lib/db/schema/app';
+import { user } from '@/lib/db/schema/auth';
+import { desc } from 'drizzle-orm';
+import { count } from 'drizzle-orm';
 import { auth } from '@/lib/auth/auth';
 import crypto from 'crypto';
 
@@ -15,12 +19,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin (first user or has admin role)
-    const usersResult = await db.execute('SELECT COUNT(*) as count FROM user');
-    const userCount = (usersResult.rows[0] as any).count;
+    const userCount = await db.select({ count: count() }).from(user);
+    const totalUsers = userCount[0].count;
     
     // First user is always admin, or check if user email is in ADMIN_EMAILS env
     const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim());
-    const isAdmin = userCount === 1 || adminEmails.includes(session.user.email);
+    const isAdmin = totalUsers === 1 || adminEmails.includes(session.user.email);
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Only admins can create invite codes' }, { status: 403 });
@@ -34,9 +38,11 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-    await db.execute({
-      sql: 'INSERT INTO invite_codes (code, email, created_by, expires_at) VALUES (?, ?, ?, ?)',
-      args: [code, email || null, session.user.email, expiresAt.toISOString()],
+    await db.insert(inviteCodes).values({
+      code,
+      email: email || null,
+      createdBy: session.user.email,
+      expiresAt: expiresAt.toISOString(),
     });
 
     return NextResponse.json({ 
@@ -61,17 +67,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const usersResult = await db.execute('SELECT COUNT(*) as count FROM user');
-    const userCount = (usersResult.rows[0] as any).count;
+    const userCount = await db.select({ count: count() }).from(user);
+    const totalUsers = userCount[0].count;
     const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim());
-    const isAdmin = userCount === 1 || adminEmails.includes(session.user.email);
+    const isAdmin = totalUsers === 1 || adminEmails.includes(session.user.email);
 
     if (!isAdmin) {
       return NextResponse.json({ error: 'Only admins can view invite codes' }, { status: 403 });
     }
 
-    const result = await db.execute('SELECT * FROM invite_codes ORDER BY created_at DESC');
-    return NextResponse.json(result.rows);
+    const result = await db.select().from(inviteCodes).orderBy(desc(inviteCodes.createdAt));
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching invites:', error);
     return NextResponse.json({ error: 'Failed to fetch invite codes' }, { status: 500 });

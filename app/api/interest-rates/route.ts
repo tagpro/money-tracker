@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { interestRates } from '@/lib/db/schema/app';
+import { desc, eq } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    const result = await db.execute('SELECT * FROM interest_rates ORDER BY effective_date DESC');
-    return NextResponse.json(result.rows);
+    const result = await db.select().from(interestRates).orderBy(desc(interestRates.effectiveDate));
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching interest rates:', error);
     return NextResponse.json({ error: 'Failed to fetch interest rates' }, { status: 500 });
@@ -20,9 +22,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: 'INSERT INTO interest_rates (rate, effective_date) VALUES (?, ?)',
-      args: [rate, effective_date],
+    const result = await db.insert(interestRates).values({
+      rate,
+      effectiveDate: effective_date,
     });
 
     return NextResponse.json({ id: Number(result.lastInsertRowid), ...body }, { status: 201 });
@@ -41,10 +43,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing interest rate ID' }, { status: 400 });
     }
 
-    await db.execute({
-      sql: 'DELETE FROM interest_rates WHERE id = ?',
-      args: [id],
-    });
+    await db.delete(interestRates).where(eq(interestRates.id, Number(id)));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -52,3 +51,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete interest rate' }, { status: 500 });
   }
 }
+

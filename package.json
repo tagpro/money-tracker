@@ -10,7 +10,10 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "db:generate": "drizzle-kit generate --dialect=sqlite --schema=./lib/db/schema/index.ts",
+    "db:migrate": "echo 'Run: cat drizzle/0000_consolidated_all_tables.sql | turso db shell <db-name>'",
+    "add-accrued-interest": "tsx scripts/add-accrued-interest.ts"
   },
   "keywords": [],
   "author": "",

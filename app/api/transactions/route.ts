@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { transactions } from '@/lib/db/schema/app';
+import { desc, eq } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    const result = await db.execute('SELECT * FROM transactions ORDER BY date DESC, id DESC');
-    return NextResponse.json(result.rows);
+    const result = await db.select().from(transactions).orderBy(desc(transactions.date), desc(transactions.id));
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
@@ -20,9 +22,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: 'INSERT INTO transactions (type, amount, date, description) VALUES (?, ?, ?, ?)',
-      args: [type, amount, date, description || null],
+    const result = await db.insert(transactions).values({
+      type,
+      amount,
+      date,
+      description: description || null,
     });
 
     return NextResponse.json({ id: Number(result.lastInsertRowid), ...body }, { status: 201 });
@@ -41,10 +45,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing transaction ID' }, { status: 400 });
     }
 
-    await db.execute({
-      sql: 'DELETE FROM transactions WHERE id = ?',
-      args: [id],
-    });
+    await db.delete(transactions).where(eq(transactions.id, Number(id)));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -52,3 +53,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete transaction' }, { status: 500 });
   }
 }
+

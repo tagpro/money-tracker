@@ -20,7 +20,7 @@ function getCurrentRate(rates: InterestRate[], date: Date): number {
   return currentRate;
 }
 
-export async function GET() {
+export async function POST() {
   try {
     const transactionsData = await db.select().from(transactionsTable).orderBy(asc(transactionsTable.date));
     const ratesData = await db.select().from(interestRatesTable).orderBy(asc(interestRatesTable.effectiveDate));
@@ -44,29 +44,24 @@ export async function GET() {
       }));
 
     if (transactions.length === 0) {
-      return new NextResponse('No data to export', { status: 404 });
+      return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
     }
 
-    // Calculate daily interest from first transaction date to today
+    // Calculate accrued interest from first transaction date to today
     const startDate = new Date(transactions[0].date);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date();
     endDate.setHours(0, 0, 0, 0);
 
-    // Create CSV content with daily interest
-    let csv = 'Date,Balance,Daily Interest Rate (%),Daily Interest Amount,Principal,Accrued Interest (Month),Transaction Type,Transaction Amount,Description\n';
-    
     let balance = 0;
     let principal = 0;
     let accruedInterest = 0;
     let currentDate = new Date(startDate);
     let transactionIndex = 0;
+    let interestTransactionsAdded = 0;
     
     while (currentDate <= endDate) {
       const currentDateStr = currentDate.toISOString().split('T')[0];
-      let transactionType = '';
-      let transactionAmount = 0;
-      let transactionDesc = '';
       
       // Process all transactions for this date
       while (
@@ -74,9 +69,6 @@ export async function GET() {
         new Date(transactions[transactionIndex].date).getTime() <= currentDate.getTime()
       ) {
         const transaction = transactions[transactionIndex];
-        transactionType = transaction.type;
-        transactionAmount = transaction.amount;
-        transactionDesc = transaction.description || '';
         
         if (transaction.type === 'deposit') {
           balance += transaction.amount;
@@ -114,6 +106,7 @@ export async function GET() {
           description: `Interest compounded for ${monthName}`,
         });
         
+        interestTransactionsAdded++;
         accruedInterest = 0;
       }
       
@@ -121,35 +114,17 @@ export async function GET() {
         accruedInterest += dailyInterest;
       }
 
-      // Add row to CSV
-      csv += `${currentDateStr},${balance.toFixed(2)},${currentRate.toFixed(2)},${dailyInterest.toFixed(4)},${principal.toFixed(2)},${accruedInterest.toFixed(2)},${transactionType},${transactionAmount || ''},\"${transactionDesc}\"\n`;
-
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    // Add summary section
-    csv += '\n\nTransactions Summary\n';
-    csv += 'Type,Date,Amount,Description,Created At\n';
-    
-    transactions.forEach((t) => {
-      csv += `${t.type},${t.date},${t.amount},"${t.description || ''}",${t.created_at}\n`;
-    });
-
-    csv += '\n\nInterest Rates\n';
-    csv += 'Rate (%),Effective Date,Created At\n';
-    
-    interestRates.forEach((r) => {
-      csv += `${r.rate},${r.effective_date},${r.created_at}\n`;
-    });
-
-    return new NextResponse(csv, {
-      headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="loan-tracker-daily-${new Date().toISOString().split('T')[0]}.csv"`,
-      },
+    return NextResponse.json({ 
+      success: true,
+      interestTransactionsAdded,
+      currentAccruedInterest: accruedInterest,
+      message: `Added ${interestTransactionsAdded} interest transaction(s) to history. Current month accrued interest: ${accruedInterest.toFixed(2)}`
     });
   } catch (error) {
-    console.error('Error exporting data:', error);
-    return NextResponse.json({ error: 'Failed to export data' }, { status: 500 });
+    console.error('Error adding accrued interest:', error);
+    return NextResponse.json({ error: 'Failed to add accrued interest' }, { status: 500 });
   }
 }
