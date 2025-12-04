@@ -1,7 +1,7 @@
 import { Transaction, InterestRate } from './types';
 
 // Utility to parse a date string (YYYY-MM-DD) into a Date object at local midnight
-function parseDate(dateStr: string): Date {
+export function parseDate(dateStr: string): Date {
   if (!dateStr) {
     throw new Error('Date string is required');
   }
@@ -31,10 +31,10 @@ export function calculateBalance(
   let balance = 0;
   let principal = 0;
   let accruedInterest = 0;
-  
+
   // Start from the first transaction date - parse as local date
   const startDate = parseDate(sortedTransactions[0].date);
-  
+
   // Parse target date properly too
   const endDate = new Date(targetDate);
   endDate.setHours(0, 0, 0, 0);
@@ -47,7 +47,7 @@ export function calculateBalance(
     let hasInterestTransaction = false;
     while (transactionIndex < sortedTransactions.length) {
       const txDate = parseDate(sortedTransactions[transactionIndex].date);
-      
+
       if (txDate.getTime() <= currentDate.getTime()) {
         const transaction = sortedTransactions[transactionIndex];
         if (transaction.type === 'deposit') {
@@ -87,24 +87,24 @@ export function calculateBalance(
         accruedInterest += dailyInterest;
       }
     }
-    
+
     // Check if tomorrow will have an interest transaction
     let tomorrowHasInterest = false;
     if (transactionIndex < sortedTransactions.length) {
       const nextTxDate = parseDate(sortedTransactions[transactionIndex].date);
-      if (nextTxDate.getTime() === tomorrow.getTime() && 
-          sortedTransactions[transactionIndex].type === 'interest') {
+      if (nextTxDate.getTime() === tomorrow.getTime() &&
+        sortedTransactions[transactionIndex].type === 'interest') {
         tomorrowHasInterest = true;
       }
     }
-    
+
     // Only auto-compound if:
     // 1. There was no interest transaction today
     // 2. Tomorrow is a new month
     // 3. Tomorrow won't have an interest transaction (to avoid double-compounding)
-    if (!hasInterestTransaction && 
-        !tomorrowHasInterest &&
-        tomorrow.getMonth() !== currentDate.getMonth()) {
+    if (!hasInterestTransaction &&
+      !tomorrowHasInterest &&
+      tomorrow.getMonth() !== currentDate.getMonth()) {
       balance += accruedInterest;
       principal += accruedInterest;
       accruedInterest = 0;
@@ -124,7 +124,7 @@ function getCurrentRate(rates: InterestRate[], date: Date): number {
   if (!rates || rates.length === 0) {
     return 0;
   }
-  
+
   let currentRate = 0;
   for (const rate of rates) {
     if (!rate || !rate.effective_date) {
@@ -144,7 +144,7 @@ export function getMonthEndDates(startDate: Date, endDate: Date): Date[] {
   const dates: Date[] = [];
   const current = new Date(startDate);
   current.setDate(1); // Start from the beginning of the month
-  
+
   while (current <= endDate) {
     const monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 0);
     if (monthEnd <= endDate) {
@@ -152,6 +152,6 @@ export function getMonthEndDates(startDate: Date, endDate: Date): Date[] {
     }
     current.setMonth(current.getMonth() + 1);
   }
-  
+
   return dates;
 }
