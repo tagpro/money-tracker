@@ -9,6 +9,19 @@ export function parseDate(dateStr: string): Date {
   return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
 }
 
+// Format a Date as YYYY-MM-DD using local time (never UTC)
+export function formatDateLocal(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Normalize a Date to local midnight (strips time component using local timezone)
+export function toLocalMidnight(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
 export function calculateBalance(
   transactions: Transaction[],
   interestRates: InterestRate[],
@@ -18,14 +31,14 @@ export function calculateBalance(
     return { balance: 0, principal: 0, accruedInterest: 0 };
   }
 
-  // Sort transactions by date
+  // Sort transactions by date (use parseDate for consistent local-time parsing)
   const sortedTransactions = [...transactions].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime()
   );
 
   // Sort interest rates by effective date
   const sortedRates = [...interestRates].sort(
-    (a, b) => new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
+    (a, b) => parseDate(a.effective_date).getTime() - parseDate(b.effective_date).getTime()
   );
 
   let balance = 0;
@@ -35,9 +48,8 @@ export function calculateBalance(
   // Start from the first transaction date - parse as local date
   const startDate = parseDate(sortedTransactions[0].date);
 
-  // Parse target date properly too
-  const endDate = new Date(targetDate);
-  endDate.setHours(0, 0, 0, 0);
+  // Normalize target date to local midnight
+  const endDate = toLocalMidnight(targetDate);
 
   let currentDate = new Date(startDate);
   let transactionIndex = 0;
