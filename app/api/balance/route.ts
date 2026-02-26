@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { transactions, interestRates } from '@/lib/db/schema/app';
 import { asc } from 'drizzle-orm';
-import { calculateBalance } from '@/lib/interest';
+import { calculateBalance, formatDateLocal, parseDate } from '@/lib/interest';
 import { Transaction, InterestRate } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const targetDate = searchParams.get('date') || formatDateLocal(new Date());
 
     const transactionsData = await db.select().from(transactions).orderBy(asc(transactions.date));
     const ratesData = await db.select().from(interestRates).orderBy(asc(interestRates.effectiveDate));
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const balance = calculateBalance(
       mappedTransactions, 
       mappedRates, 
-      new Date(targetDate)
+      parseDate(targetDate)
     );
 
     return NextResponse.json(balance);

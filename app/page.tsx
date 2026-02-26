@@ -34,7 +34,10 @@ export default function Home() {
 
   useEffect(() => {
     if (session) {
-      fetchData();
+      // Auto-accrue interest on load (idempotent, safe to call repeatedly)
+      fetch('/api/accrue-interest', { method: 'POST' })
+        .catch(() => {}) // fire-and-forget, errors are non-critical
+        .finally(() => fetchData());
     }
   }, [session]);
 

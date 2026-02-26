@@ -3,12 +3,12 @@ import { db } from '@/lib/db';
 import { transactions as transactionsTable, interestRates as interestRatesTable } from '@/lib/db/schema/app';
 import { asc } from 'drizzle-orm';
 import { Transaction, InterestRate } from '@/lib/types';
-import { parseDate } from '@/lib/interest';
+import { parseDate, formatDateLocal, toLocalMidnight } from '@/lib/interest';
 
 function getCurrentRate(rates: InterestRate[], date: Date): number {
   let currentRate = 0;
   const sortedRates = [...rates].sort(
-    (a, b) => new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
+    (a, b) => parseDate(a.effective_date).getTime() - parseDate(b.effective_date).getTime()
   );
 
   for (const rate of sortedRates) {
@@ -48,10 +48,14 @@ export async function POST() {
       return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
     }
 
-    // Calculate accrued interest from first transaction date to today
+    // Build a set of dates that already have interest transactions to prevent duplicates
+    const existingInterestDates = new Set(
+      transactions.filter(t => t.type === 'interest').map(t => t.date)
+    );
+
+    // Calculate accrued interest from first transaction date to today (local time)
     const startDate = parseDate(transactions[0].date);
-    const endDate = new Date();
-    endDate.setHours(0, 0, 0, 0);
+    const endDate = toLocalMidnight(new Date());
 
     let balance = 0;
     let principal = 0;
@@ -61,7 +65,7 @@ export async function POST() {
     let interestTransactionsAdded = 0;
 
     while (currentDate <= endDate) {
-      const currentDateStr = currentDate.toISOString().split('T')[0];
+      const currentDateStr = formatDateLocal(currentDate);
 
       // Process all transactions for this date
       while (
@@ -78,8 +82,6 @@ export async function POST() {
           principal -= transaction.amount;
         } else if (transaction.type === 'interest') {
           balance += transaction.amount;
-          // If we find an interest transaction, it means interest for the previous period
-          // has already been compounded. We should reset accrued interest to avoid double counting.
           accruedInterest = 0;
         }
         transactionIndex++;
@@ -93,23 +95,30 @@ export async function POST() {
 
       // Check if this is the first day of the month and we have accrued interest
       if (currentDate.getDate() === 1 && accruedInterest > 0) {
-        // Compound the accrued interest from previous month
-        balance += accruedInterest;
-        principal += accruedInterest;
+        // Only insert if an interest transaction doesn't already exist for this date
+        if (!existingInterestDates.has(currentDateStr)) {
+          // Compound the accrued interest from previous month
+          balance += accruedInterest;
+          principal += accruedInterest;
 
-        // Record this as an interest transaction in the database
-        const previousMonth = new Date(currentDate);
-        previousMonth.setDate(0); // Last day of previous month
-        const monthName = previousMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          // Record this as an interest transaction in the database
+          const previousMonth = new Date(currentDate);
+          previousMonth.setDate(0); // Last day of previous month
+          const monthName = previousMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-        await db.insert(transactionsTable).values({
-          type: 'interest',
-          amount: accruedInterest,
-          date: currentDateStr,
-          description: `Interest compounded for ${monthName}`,
-        });
+          await db.insert(transactionsTable).values({
+            type: 'interest',
+            amount: accruedInterest,
+            date: currentDateStr,
+            description: `Interest compounded for ${monthName}`,
+          });
 
-        interestTransactionsAdded++;
+          existingInterestDates.add(currentDateStr);
+          interestTransactionsAdded++;
+        } else {
+          // Interest already recorded for this month — skip to avoid duplicate
+          // The balance was already updated when we processed the existing interest transaction above
+        }
         accruedInterest = 0;
       }
 
