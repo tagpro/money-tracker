@@ -26,6 +26,18 @@ export default function Home() {
   // Balance date
   const [balanceDate, setBalanceDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Re-calculate interest state
+  const [showRecalcModal, setShowRecalcModal] = useState(false);
+  const [discrepancies, setDiscrepancies] = useState<Array<{
+    date: string;
+    month: string;
+    expected: number;
+    actual: number | null;
+    existingTransactionId: number | null;
+    action: 'update' | 'insert' | 'delete';
+  }>>([]);
+  const [recalcLoading, setRecalcLoading] = useState(false);
+
   useEffect(() => {
     if (!isPending && !session) {
       router.push('/login');
@@ -169,27 +181,47 @@ export default function Home() {
     }
   }
 
-  async function handleAccrueInterest() {
-    if (!confirm('This will add interest transactions to your history for all past months. Continue?')) {
-      return;
+  async function handleRecalculate() {
+    setRecalcLoading(true);
+    try {
+      const res = await fetch('/api/accrue-interest');
+      const data = await res.json();
+
+      if (data.allCorrect) {
+        alert(`All interest calculations are correct! Current month accrued: $${data.currentMonthAccrued.toFixed(2)}`);
+      } else {
+        setDiscrepancies(data.discrepancies);
+        setShowRecalcModal(true);
+      }
+    } catch (error) {
+      console.error('Error verifying interest:', error);
+      alert('Failed to verify interest');
+    } finally {
+      setRecalcLoading(false);
     }
-    
+  }
+
+  async function handleApplyCorrections() {
     try {
       const res = await fetch('/api/accrue-interest', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'apply' }),
       });
-      
+
       const data = await res.json();
-      
+
       if (data.success) {
         alert(data.message);
-        fetchData(); // Refresh data
+        setShowRecalcModal(false);
+        setDiscrepancies([]);
+        fetchData();
       } else {
-        alert('Error: ' + (data.error || 'Failed to accrue interest'));
+        alert('Error: ' + (data.error || 'Failed to apply corrections'));
       }
     } catch (error) {
-      console.error('Error accruing interest:', error);
-      alert('Failed to accrue interest');
+      console.error('Error applying corrections:', error);
+      alert('Failed to apply corrections');
     }
   }
 
@@ -223,11 +255,12 @@ export default function Home() {
               Manage Invites
             </a>
             <button
-              onClick={handleAccrueInterest}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              title="Add monthly interest to transaction history"
+              onClick={handleRecalculate}
+              disabled={recalcLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              title="Verify and correct interest calculations"
             >
-              Accrue Interest
+              {recalcLoading ? 'Checking...' : 'Re-calculate Interest'}
             </button>
             <button
               onClick={handleExport}
@@ -455,6 +488,72 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {showRecalcModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900">Interest Discrepancies Found</h2>
+            <p className="text-gray-600 mb-4">
+              The following interest calculations differ from the recorded values:
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-3 text-gray-700">Month</th>
+                    <th className="text-right py-2 px-3 text-gray-700">Expected</th>
+                    <th className="text-right py-2 px-3 text-gray-700">Recorded</th>
+                    <th className="text-right py-2 px-3 text-gray-700">Difference</th>
+                    <th className="text-left py-2 px-3 text-gray-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {discrepancies.map((d) => (
+                    <tr key={d.date} className="border-b border-gray-100">
+                      <td className="py-2 px-3">{d.month}</td>
+                      <td className="py-2 px-3 text-right font-mono">${d.expected.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-right font-mono">
+                        {d.actual !== null ? `$${d.actual.toFixed(2)}` : '\u2014'}
+                      </td>
+                      <td className={`py-2 px-3 text-right font-mono ${
+                        (d.expected - (d.actual || 0)) > 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {(d.expected - (d.actual || 0)) > 0 ? '+' : ''}
+                        ${(d.expected - (d.actual || 0)).toFixed(2)}
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          d.action === 'insert'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : d.action === 'update'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {d.action === 'insert' ? 'Missing' : d.action === 'update' ? 'Incorrect' : 'Extra'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 justify-end mt-6">
+              <button
+                onClick={() => setShowRecalcModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyCorrections}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                Apply Corrections
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
