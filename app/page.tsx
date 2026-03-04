@@ -5,6 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Transaction, InterestRate } from '@/lib/types';
 import { useSession, signOut } from '@/lib/auth/client';
 
+function getLocalDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function Home() {
   const { data: session, isPending } = useSession();
   const router = useRouter();
@@ -16,15 +21,15 @@ export default function Home() {
   // Transaction form state
   const [transactionType, setTransactionType] = useState<'deposit' | 'withdrawal'>('deposit');
   const [transactionAmount, setTransactionAmount] = useState('');
-  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [transactionDate, setTransactionDate] = useState(getLocalDateString);
   const [transactionDescription, setTransactionDescription] = useState('');
 
   // Interest rate form state
   const [newRate, setNewRate] = useState('');
-  const [rateEffectiveDate, setRateEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
+  const [rateEffectiveDate, setRateEffectiveDate] = useState(getLocalDateString);
 
   // Balance date
-  const [balanceDate, setBalanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [balanceDate, setBalanceDate] = useState(getLocalDateString);
 
   // Re-calculate interest state
   const [showRecalcModal, setShowRecalcModal] = useState(false);
