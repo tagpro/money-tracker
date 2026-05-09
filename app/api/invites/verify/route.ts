@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { inviteCodes } from '@/lib/db/schema/app';
-import { eq } from 'drizzle-orm';
+import { user } from '@/lib/db/schema/auth';
+import { eq, count } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
+
+    // Check if there are any users in the database
+    const userCount = await db.select({ value: count() }).from(user);
+    const totalUsers = userCount[0].value;
+
+    if (totalUsers === 0) {
+      return NextResponse.json({ 
+        valid: true, 
+        isFirstUser: true,
+        message: 'First user signup - no invite code required' 
+      });
+    }
 
     if (!code) {
       return NextResponse.json({ valid: false, error: 'No invite code provided' }, { status: 400 });

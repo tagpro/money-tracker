@@ -33,6 +33,7 @@ jest.mock("../lib/auth/auth", () => ({
 // 4. Now import the routes
 import { POST as accruePOST, GET as accrueGET } from "../app/api/accrue-interest/route";
 import { POST as transPOST } from "../app/api/transactions/route";
+import { GET as exportGET } from "../app/api/export/route";
 
 describe("API Integration Tests", () => {
   beforeAll(async () => {
@@ -159,6 +160,42 @@ describe("API Integration Tests", () => {
       const data2 = await res2.json();
       expect(data2.allCorrect).toBe(true);
       expect(data2.discrepancies.length).toBe(0);
+    });
+  });
+
+  describe("GET /api/export", () => {
+    it("should return a CSV and NOT modify the database", async () => {
+      // Seed a deposit
+      await testDb.insert(transactions).values({
+        type: "deposit",
+        amount: 5000,
+        date: "2024-01-01",
+        description: "Export Test Seed"
+      });
+
+      // Record count before
+      const countBeforeRes = await testClient.execute("SELECT count(*) as count FROM transactions");
+      const countBefore = countBeforeRes.rows[0].count;
+
+      const res = await exportGET();
+      
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/csv");
+      
+      const csvText = await res.text();
+      expect(csvText).toContain("Date,Balance,Daily Interest Rate (%)");
+      expect(csvText).toContain("Export Test Seed");
+
+      // Record count after
+      const countAfterRes = await testClient.execute("SELECT count(*) as count FROM transactions");
+      const countAfter = countAfterRes.rows[0].count;
+      
+      // ASSERT: No database changes occurred
+      expect(countAfter).toBe(countBefore);
+      
+      // Double check: No interest transactions were added (the previous bug)
+      const interestCountRes = await testClient.execute("SELECT count(*) as count FROM transactions WHERE type='interest'");
+      expect(interestCountRes.rows[0].count).toBe(0);
     });
   });
 });
