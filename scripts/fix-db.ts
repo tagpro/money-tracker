@@ -3,7 +3,7 @@ import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import { transactions as transactionsTable, interestRates as interestRatesTable } from '../lib/db/schema/app';
 import { asc, eq } from 'drizzle-orm';
-import { simulateInterestLedger } from '../lib/interest';
+import { simulateInterestLedger, getCurrentMelbourneDate } from '../lib/interest';
 import { Transaction, InterestRate } from '../lib/types';
 import * as fs from 'fs';
 
@@ -52,7 +52,7 @@ async function fix() {
     const { postings: expected } = simulateInterestLedger(
       nonInterestTx,
       interestRates,
-      new Date(),
+      getCurrentMelbourneDate(),
       false,
     );
 
