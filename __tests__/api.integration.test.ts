@@ -8,10 +8,11 @@ import { auth } from "../lib/auth/auth";
 import { NextRequest } from "next/server";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
+import * as crypto from "crypto";
 
-// 1. Define the test DB
-const TEST_DB = "api-integration-test.db";
-if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+// 1. Define a unique test DB path
+const TEST_DB = path.join(os.tmpdir(), `api-integration-test-${crypto.randomUUID()}.db`);
 const testClient = createClient({ url: `file:${TEST_DB}` });
 const testDb = drizzle(testClient);
 
@@ -55,7 +56,16 @@ describe("API Integration Tests", () => {
 
   afterAll(async () => {
     testClient.close();
-    if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+    if (fs.existsSync(TEST_DB)) {
+      try {
+        fs.unlinkSync(TEST_DB);
+        // Also cleanup SQLite journal files if they exist
+        if (fs.existsSync(`${TEST_DB}-shm`)) fs.unlinkSync(`${TEST_DB}-shm`);
+        if (fs.existsSync(`${TEST_DB}-wal`)) fs.unlinkSync(`${TEST_DB}-wal`);
+      } catch (e) {
+        console.error("Failed to cleanup test DB:", e);
+      }
+    }
   });
 
   beforeEach(async () => {
@@ -177,7 +187,8 @@ describe("API Integration Tests", () => {
       const countBeforeRes = await testClient.execute("SELECT count(*) as count FROM transactions");
       const countBefore = countBeforeRes.rows[0].count;
 
-      const res = await exportGET();
+      const req = new NextRequest("http://localhost/api/export");
+      const res = await exportGET(req);
       
       expect(res.status).toBe(200);
       expect(res.headers.get("Content-Type")).toBe("text/csv");
@@ -196,6 +207,15 @@ describe("API Integration Tests", () => {
       // Double check: No interest transactions were added (the previous bug)
       const interestCountRes = await testClient.execute("SELECT count(*) as count FROM transactions WHERE type='interest'");
       expect(interestCountRes.rows[0].count).toBe(0);
+    });
+
+    it("should return 401 if unauthorized", async () => {
+      (auth.api.getSession as jest.Mock).mockResolvedValue(null);
+
+      const req = new NextRequest("http://localhost/api/export");
+      const res = await exportGET(req);
+      
+      expect(res.status).toBe(401);
     });
   });
 });

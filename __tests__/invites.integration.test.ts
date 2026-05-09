@@ -8,10 +8,11 @@ import { auth } from "../lib/auth/auth";
 import { NextRequest } from "next/server";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
+import * as crypto from "crypto";
 
-// 1. Define the test DB
-const TEST_DB = "invites-integration-test.db";
-if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+// 1. Define a unique test DB path
+const TEST_DB = path.join(os.tmpdir(), `invites-integration-test-${crypto.randomUUID()}.db`);
 const testClient = createClient({ url: `file:${TEST_DB}` });
 const testDb = drizzle(testClient);
 
@@ -42,7 +43,16 @@ describe("Invites Integration Tests", () => {
 
   afterAll(async () => {
     testClient.close();
-    if (fs.existsSync(TEST_DB)) fs.unlinkSync(TEST_DB);
+    if (fs.existsSync(TEST_DB)) {
+      try {
+        fs.unlinkSync(TEST_DB);
+        // Also cleanup SQLite journal files if they exist
+        if (fs.existsSync(`${TEST_DB}-shm`)) fs.unlinkSync(`${TEST_DB}-shm`);
+        if (fs.existsSync(`${TEST_DB}-wal`)) fs.unlinkSync(`${TEST_DB}-wal`);
+      } catch (e) {
+        console.error("Failed to cleanup test DB:", e);
+      }
+    }
   });
 
   beforeEach(async () => {

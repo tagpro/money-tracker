@@ -40,11 +40,11 @@ ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
 
 # Copy built application from standalone output
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nextjs /app/public ./public
+COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nextjs /app/drizzle ./drizzle
+COPY --from=builder --chown=nextjs:nextjs /app/scripts ./scripts
 
 # Start the application using bun
 CMD ["bun", "server.js"]

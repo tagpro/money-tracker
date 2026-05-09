@@ -4,9 +4,19 @@ import { transactions as transactionsTable, interestRates as interestRatesTable 
 import { asc } from 'drizzle-orm';
 import { Transaction, InterestRate } from '@/lib/types';
 import { parseDate, formatDateLocal, simulateInterestLedger } from '@/lib/interest';
+import { auth } from '@/lib/auth/auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // 1. Verify Authentication
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const transactionsData = await db.select().from(transactionsTable).orderBy(asc(transactionsTable.date));
     const ratesData = await db.select().from(interestRatesTable).orderBy(asc(interestRatesTable.effectiveDate));
 
