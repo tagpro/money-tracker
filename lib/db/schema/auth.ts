@@ -72,7 +72,7 @@ export const verification = sqliteTable("verification", {
 export const apiKey = sqliteTable("api_key", {
   id: text("id").primaryKey(),
   name: text("name"),
-  key: text("key").notNull(),
+  key: text("key").notNull().unique(),
   prefix: text("prefix"),
   userId: text("user_id")
     .notNull()
