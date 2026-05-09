@@ -3,22 +3,7 @@ import { db } from '@/lib/db';
 import { transactions as transactionsTable, interestRates as interestRatesTable } from '@/lib/db/schema/app';
 import { asc } from 'drizzle-orm';
 import { Transaction, InterestRate } from '@/lib/types';
-
-function getCurrentRate(rates: InterestRate[], date: Date): number {
-  let currentRate = 0;
-  const sortedRates = [...rates].sort(
-    (a, b) => new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
-  );
-  
-  for (const rate of sortedRates) {
-    if (new Date(rate.effective_date) <= date) {
-      currentRate = rate.rate;
-    } else {
-      break;
-    }
-  }
-  return currentRate;
-}
+import { parseDate, formatDateLocal, simulateInterestLedger } from '@/lib/interest';
 
 export async function GET() {
   try {
@@ -35,7 +20,7 @@ export async function GET() {
     }));
 
     const interestRates: InterestRate[] = ratesData
-      .filter(r => r.effectiveDate) // Filter out any with null/undefined effectiveDate
+      .filter(r => r.effectiveDate)
       .map(r => ({
         id: r.id,
         rate: r.rate,
@@ -47,13 +32,23 @@ export async function GET() {
       return new NextResponse('No data to export', { status: 404 });
     }
 
-    // Calculate daily interest from first transaction date to today
-    const startDate = new Date(transactions[0].date);
-    startDate.setHours(0, 0, 0, 0);
+    // Use the simulation as the source of truth for the ledger
     const endDate = new Date();
-    endDate.setHours(0, 0, 0, 0);
+    const { postings: expectedPostings } = simulateInterestLedger(
+      transactions.filter(t => t.type !== 'interest'),
+      interestRates,
+      endDate,
+      false
+    );
 
-    // Create CSV content with daily interest
+    // Create a map of expected interest postings for easy lookup during the daily loop
+    const expectedInterestMap = new Map(expectedPostings.map(p => [p.date, p]));
+
+    // Calculate daily interest for CSV
+    const startDate = parseDate(transactions[0].date);
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+
     let csv = 'Date,Balance,Daily Interest Rate (%),Daily Interest Amount,Principal,Accrued Interest (Month),Transaction Type,Transaction Amount,Description\n';
     
     let balance = 0;
@@ -62,18 +57,46 @@ export async function GET() {
     let currentDate = new Date(startDate);
     let transactionIndex = 0;
     
-    while (currentDate <= endDate) {
-      const currentDateStr = currentDate.toISOString().split('T')[0];
+    // Sort transactions by date for the loop
+    const sortedTx = [...transactions].sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime());
+    const sortedRates = [...interestRates].sort((a, b) => parseDate(a.effective_date).getTime() - parseDate(b.effective_date).getTime());
+
+    function getRateForDate(date: Date): number {
+      let rate = 0;
+      for (const r of sortedRates) {
+        if (parseDate(r.effective_date).getTime() <= date.getTime()) {
+          rate = r.rate;
+        } else {
+          break;
+        }
+      }
+      return rate;
+    }
+
+    while (currentDate <= end) {
+      const currentDateStr = formatDateLocal(currentDate);
       let transactionType = '';
       let transactionAmount = 0;
       let transactionDesc = '';
       
-      // Process all transactions for this date
+      // 1. Compounding at the start of the 1st
+      if (currentDate.getDate() === 1 && accruedInterest > 0) {
+        const expected = expectedInterestMap.get(currentDateStr);
+        if (expected) {
+          balance += expected.amount;
+          principal += expected.amount;
+          accruedInterest = 0;
+          // We don't record this as a transaction yet, it will be picked up 
+          // if it exists in the DB or shown as simulated
+        }
+      }
+
+      // 2. Process transactions for this day
       while (
-        transactionIndex < transactions.length &&
-        new Date(transactions[transactionIndex].date).getTime() <= currentDate.getTime()
+        transactionIndex < sortedTx.length &&
+        parseDate(sortedTx[transactionIndex].date).getTime() <= currentDate.getTime()
       ) {
-        const transaction = transactions[transactionIndex];
+        const transaction = sortedTx[transactionIndex];
         transactionType = transaction.type;
         transactionAmount = transaction.amount;
         transactionDesc = transaction.description || '';
@@ -85,37 +108,21 @@ export async function GET() {
           balance -= transaction.amount;
           principal -= transaction.amount;
         } else if (transaction.type === 'interest') {
-          balance += transaction.amount;
+          // If we encounter an interest transaction in the DB, it should 
+          // ideally match our expected compounding. We reset accrual.
+          // Note: In a clean state, balance/principal already updated above if it was the 1st.
+          // If the DB transaction is on a different day or duplicated, we follow the DB for the "Balance" column.
+          // But to keep it simple and consistent with simulateInterestLedger:
+          accruedInterest = 0;
         }
         transactionIndex++;
       }
 
-      // Calculate daily interest
-      const currentRate = getCurrentRate(interestRates, currentDate);
+      // 3. Daily interest accrual
+      const currentRate = getRateForDate(currentDate);
       const dailyInterest = balance > 0 && currentRate > 0 
         ? (balance * currentRate) / 365 / 100 
         : 0;
-      
-      // Check if this is the first day of the month and we have accrued interest
-      if (currentDate.getDate() === 1 && accruedInterest > 0) {
-        // Compound the accrued interest from previous month
-        balance += accruedInterest;
-        principal += accruedInterest;
-        
-        // Record this as an interest transaction in the database
-        const previousMonth = new Date(currentDate);
-        previousMonth.setDate(0); // Last day of previous month
-        const monthName = previousMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        
-        await db.insert(transactionsTable).values({
-          type: 'interest',
-          amount: accruedInterest,
-          date: currentDateStr,
-          description: `Interest compounded for ${monthName}`,
-        });
-        
-        accruedInterest = 0;
-      }
       
       if (dailyInterest > 0) {
         accruedInterest += dailyInterest;
@@ -145,7 +152,7 @@ export async function GET() {
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="loan-tracker-daily-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Disposition': `attachment; filename="loan-tracker-daily-${formatDateLocal(new Date())}.csv"`,
       },
     });
   } catch (error) {

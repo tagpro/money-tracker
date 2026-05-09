@@ -10,24 +10,20 @@ This project uses **Drizzle ORM** for all database operations and migrations.
 
 ## Running Migrations
 
-### New Database Setup
+### Automated (Recommended)
 
-For a fresh database, run the consolidated migration:
+Migrations are now **automatic** on every deployment! 
 
-```bash
-# List your databases
-turso db list
+- **How it works**: The `fly.toml` includes a `release_command` that runs `bun run db:migrate` before the new version of the app starts.
+- **Safety**: If a migration fails, the deployment stops, and your production app remains on the previous stable version.
 
-# Apply migration
-cat drizzle/0000_consolidated_all_tables.sql | turso db shell <db-name>
-```
+### Local Development Setup
 
-### Existing Database
-
-If you've already run the auth migration (`0000_gorgeous_ikaris.sql`), just run the app tables:
+For local development with file-based SQLite (`local.db`):
 
 ```bash
-cat drizzle/0001_spicy_zeigeist.sql | turso db shell <db-name>
+# Apply all pending migrations
+bun run db:migrate
 ```
 
 ## Generating New Migrations
@@ -36,18 +32,17 @@ When you modify the schema in `lib/db/schema/`:
 
 ```bash
 # Generate migration
-npm run db:generate
-
-# Or manually
-npx drizzle-kit generate --dialect=sqlite --schema=./lib/db/schema/index.ts
+bun run db:generate
 ```
 
-This will create a new file in `drizzle/` like `0002_xxx.sql`.
+This will create a new file in `drizzle/`. You don't need to manually apply it to production anymore—just commit the new file and push to `main`. The GitHub Action and Fly.io will handle the rest.
 
-Then apply it:
+## Database Studio
+
+To explore your database with a GUI:
 
 ```bash
-cat drizzle/0002_xxx.sql | turso db shell <db-name>
+bun run db:studio
 ```
 
 ## Schema Files

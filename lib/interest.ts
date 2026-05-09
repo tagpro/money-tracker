@@ -1,4 +1,7 @@
 import { Transaction, InterestRate } from './types';
+import { db } from './db';
+import { transactions as transactionsTable, interestRates as interestRatesTable } from './db/schema/app';
+import { asc } from 'drizzle-orm';
 
 // Utility to parse a date string (YYYY-MM-DD) into a Date object at local midnight
 export function parseDate(dateStr: string): Date {
@@ -206,4 +209,73 @@ export function getMonthEndDates(startDate: Date, endDate: Date): Date[] {
   }
 
   return dates;
+}
+
+/**
+ * Returns the current date in Australia/Melbourne timezone as a Date object at midnight.
+ */
+export function getCurrentMelbourneDate(): Date {
+  const now = new Date();
+  const melbourneTime = now.toLocaleString("en-US", { timeZone: "Australia/Melbourne" });
+  const d = new Date(melbourneTime);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+/**
+ * Centralized, idempotent logic to apply missing interest transactions.
+ * Walks from the first transaction to targetDate, finds expected postings,
+ * and inserts them if they don't already exist in the DB for that date.
+ */
+export async function applyMissingInterest(targetDate: Date) {
+  const transactionsData = await db.select().from(transactionsTable).orderBy(asc(transactionsTable.date));
+  const ratesData = await db.select().from(interestRatesTable).orderBy(asc(interestRatesTable.effectiveDate));
+
+  const transactions: Transaction[] = transactionsData.map(t => ({
+    id: t.id,
+    type: t.type as 'deposit' | 'withdrawal' | 'interest',
+    amount: t.amount,
+    date: t.date,
+    description: t.description || undefined,
+    created_at: t.createdAt || undefined,
+  }));
+
+  const interestRates: InterestRate[] = ratesData
+    .filter(r => r.effectiveDate)
+    .map(r => ({
+      id: r.id,
+      rate: r.rate,
+      effective_date: r.effectiveDate,
+      created_at: r.createdAt || undefined,
+    }));
+
+  if (transactions.length === 0) {
+    return { added: 0, message: "No transactions found" };
+  }
+
+  const nonInterestTx = transactions.filter(t => t.type !== 'interest');
+  const existingInterestDates = new Set(
+    transactions.filter(t => t.type === 'interest').map(t => t.date)
+  );
+
+  const { postings } = simulateInterestLedger(
+    nonInterestTx,
+    interestRates,
+    targetDate,
+    false,
+  );
+
+  let added = 0;
+  for (const posting of postings) {
+    if (!existingInterestDates.has(posting.date)) {
+      await db.insert(transactionsTable).values({
+        type: 'interest',
+        amount: posting.amount,
+        date: posting.date,
+        description: posting.description,
+      });
+      added++;
+    }
+  }
+
+  return { added, message: `Added ${added} missing interest transaction(s).` };
 }

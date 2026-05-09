@@ -40,26 +40,44 @@ loan-tracker/
 
 🟢 **Development server is RUNNING** at http://localhost:3000
 
-⚠️  Note: Tailwind CSS installation had issues but the app should still work.
-    If you see styling issues, run: `npm install -D tailwindcss@3 postcss autoprefixer`
+## Getting Started
+
+1. **Install Dependencies**:
+   ```bash
+   bun install
+   ```
+
+2. **Database Setup**:
+   The project uses Drizzle ORM. To set up your local database:
+   ```bash
+   # Initialize local SQLite database with all tables
+   cat drizzle/0000_consolidated_all_tables.sql | sqlite3 local.db
+   ```
+
+3. **Run Development Server**:
+   ```bash
+   bun dev
+   ```
+
+## Key Features Implemented
+
+✅ Add/remove money (deposits/withdrawals) at any date
+✅ Daily interest calculation with idempotent monthly compounding
+✅ Secure API access via Better Auth API Keys
+✅ Automated monthly accrual via GitHub Actions
+✅ CSV export functionality
+✅ SQLite database (local or Turso)
+✅ Beautiful Tailwind UI
 
 ## Next Steps
 
 1. **Open your browser**: http://localhost:3000
 
-2. **Optional - Set up Turso database**:
+2. **Set up Production Database (Turso)**:
    - Create account at https://turso.tech
    - Run: `turso db create loan-tracker`
-   - Get URL: `turso db show loan-tracker`
-   - Get token: `turso db tokens create loan-tracker`
-   - Create `.env.local` with:
-     ```
-     TURSO_DATABASE_URL=your_url
-     TURSO_AUTH_TOKEN=your_token
-     ```
-
-3. **Or use local SQLite**:
-   - A `local.db` file will be created automatically
+   - Apply migrations: `cat drizzle/0000_consolidated_all_tables.sql | turso db shell loan-tracker`
+   - Get URL/Token and set them in your environment variables.
 
 ## How to Use
 

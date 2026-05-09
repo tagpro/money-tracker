@@ -1,4 +1,4 @@
-CREATE TABLE `account` (
+CREATE TABLE IF NOT EXISTS `account` (
 	`id` text PRIMARY KEY NOT NULL,
 	`account_id` text NOT NULL,
 	`provider_id` text NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE `account` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `session` (
+CREATE TABLE IF NOT EXISTS `session` (
 	`id` text PRIMARY KEY NOT NULL,
 	`expires_at` integer NOT NULL,
 	`token` text NOT NULL,
@@ -27,8 +27,8 @@ CREATE TABLE `session` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `session_token_unique` ON `session` (`token`);--> statement-breakpoint
-CREATE TABLE `user` (
+CREATE UNIQUE INDEX IF NOT EXISTS `session_token_unique` ON `session` (`token`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `user` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`email` text NOT NULL,
@@ -38,8 +38,8 @@ CREATE TABLE `user` (
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakpoint
-CREATE TABLE `verification` (
+CREATE UNIQUE INDEX IF NOT EXISTS `user_email_unique` ON `user` (`email`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `verification` (
 	`id` text PRIMARY KEY NOT NULL,
 	`identifier` text NOT NULL,
 	`value` text NOT NULL,
@@ -47,22 +47,22 @@ CREATE TABLE `verification` (
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 );
-CREATE TABLE `balance_snapshots` (
+CREATE TABLE IF NOT EXISTS `balance_snapshots` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`date` text NOT NULL,
 	`balance` real NOT NULL,
 	`created_at` text DEFAULT CURRENT_TIMESTAMP
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `balance_snapshots_date_unique` ON `balance_snapshots` (`date`);--> statement-breakpoint
-CREATE TABLE `interest_rates` (
+CREATE UNIQUE INDEX IF NOT EXISTS `balance_snapshots_date_unique` ON `balance_snapshots` (`date`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `interest_rates` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`rate` real NOT NULL,
 	`effective_date` text NOT NULL,
 	`created_at` text DEFAULT CURRENT_TIMESTAMP
 );
 --> statement-breakpoint
-CREATE TABLE `invite_codes` (
+CREATE TABLE IF NOT EXISTS `invite_codes` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`code` text NOT NULL,
 	`email` text,
@@ -73,8 +73,8 @@ CREATE TABLE `invite_codes` (
 	`expires_at` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `invite_codes_code_unique` ON `invite_codes` (`code`);--> statement-breakpoint
-CREATE TABLE `transactions` (
+CREATE UNIQUE INDEX IF NOT EXISTS `invite_codes_code_unique` ON `invite_codes` (`code`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `transactions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`type` text NOT NULL,
 	`amount` real NOT NULL,

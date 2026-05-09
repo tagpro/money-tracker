@@ -213,9 +213,9 @@ fly secrets set \
 
 ### Development
 ```bash
-npm run dev              # Start dev server
-npm test                # Run tests
-npm run test:watch      # Watch mode
+bun dev              # Start dev server
+bun test             # Run tests
+bun test --watch     # Watch mode
 ```
 
 ### Database
@@ -224,13 +224,13 @@ npm run test:watch      # Watch mode
 cat drizzle/0000_consolidated_all_tables.sql | turso db shell <db-name>
 
 # Generate new migration after schema changes
-npm run db:generate
+bun run db:generate
 
 # Or manually
-npx drizzle-kit generate --dialect=sqlite --schema=./lib/db/schema/index.ts
+bunx drizzle-kit generate --dialect=sqlite --schema=./lib/db/schema/index.ts
 
 # Add monthly interest (CLI)
-npm run add-accrued-interest
+bun run add-accrued-interest
 
 # Or use the API endpoint (Web UI)
 curl -X POST http://localhost:3000/api/accrue-interest

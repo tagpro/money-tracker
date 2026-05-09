@@ -3,7 +3,8 @@ import { db } from '@/lib/db';
 import { transactions as transactionsTable, interestRates as interestRatesTable } from '@/lib/db/schema/app';
 import { asc, eq } from 'drizzle-orm';
 import { Transaction, InterestRate } from '@/lib/types';
-import { simulateInterestLedger } from '@/lib/interest';
+import { simulateInterestLedger, applyMissingInterest, getCurrentMelbourneDate } from '@/lib/interest';
+import { auth } from '@/lib/auth/auth';
 
 async function fetchAllData() {
   const transactionsData = await db.select().from(transactionsTable).orderBy(asc(transactionsTable.date));
@@ -42,10 +43,11 @@ export async function GET() {
     const existingInterest = transactions.filter(t => t.type === 'interest');
     const nonInterestTx = transactions.filter(t => t.type !== 'interest');
 
+    const targetDate = getCurrentMelbourneDate();
     const { postings: expected, accruedInterest: currentMonthAccrued } = simulateInterestLedger(
       nonInterestTx,
       interestRates,
-      new Date(),
+      targetDate,
       false,
     );
 
@@ -114,9 +116,18 @@ export async function GET() {
   }
 }
 
-// POST: Auto-accrue (no body) or apply corrections ({ action: 'apply' })
+// POST: Auto-accrue or apply corrections
 export async function POST(request: Request) {
   try {
+    // 1. Verify Authentication (Session or API Key)
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let body: { action?: string } = {};
     try {
       body = await request.json();
@@ -127,67 +138,24 @@ export async function POST(request: Request) {
     if (body.action === 'apply') {
       // Delete all existing interest transactions and re-insert correct ones
       await db.delete(transactionsTable).where(eq(transactionsTable.type, 'interest'));
-
-      const { transactions, interestRates } = await fetchAllData();
-      const { postings: expected } = simulateInterestLedger(
-        transactions,
-        interestRates,
-        new Date(),
-        false,
-      );
-
-      for (const exp of expected) {
-        await db.insert(transactionsTable).values({
-          type: 'interest',
-          amount: exp.amount,
-          date: exp.date,
-          description: exp.description,
-        });
-      }
+      
+      const targetDate = getCurrentMelbourneDate();
+      const result = await applyMissingInterest(targetDate);
 
       return NextResponse.json({
         success: true,
-        message: `Re-calculated and updated ${expected.length} interest transaction(s).`,
+        message: `Re-calculated and updated all interest transactions. ${result.message}`,
       });
     }
 
     // Default: auto-accrue — insert only missing interest postings
-    const { transactions, interestRates } = await fetchAllData();
-
-    if (transactions.length === 0) {
-      return NextResponse.json({ error: 'No transactions found' }, { status: 404 });
-    }
-
-    const nonInterestTx = transactions.filter(t => t.type !== 'interest');
-    const existingInterestDates = new Set(
-      transactions.filter(t => t.type === 'interest').map(t => t.date)
-    );
-
-    const { postings, accruedInterest } = simulateInterestLedger(
-      nonInterestTx,
-      interestRates,
-      new Date(),
-      false,
-    );
-
-    let interestTransactionsAdded = 0;
-    for (const posting of postings) {
-      if (!existingInterestDates.has(posting.date)) {
-        await db.insert(transactionsTable).values({
-          type: 'interest',
-          amount: posting.amount,
-          date: posting.date,
-          description: posting.description,
-        });
-        interestTransactionsAdded++;
-      }
-    }
+    const targetDate = getCurrentMelbourneDate();
+    const result = await applyMissingInterest(targetDate);
 
     return NextResponse.json({
       success: true,
-      interestTransactionsAdded,
-      currentAccruedInterest: accruedInterest,
-      message: `Added ${interestTransactionsAdded} interest transaction(s) to history. Current month accrued interest: ${accruedInterest.toFixed(2)}`
+      interestTransactionsAdded: result.added,
+      message: result.message
     });
   } catch (error) {
     console.error('Error adding accrued interest:', error);

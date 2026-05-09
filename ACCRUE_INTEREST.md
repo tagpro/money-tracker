@@ -47,6 +47,7 @@ On the 1st of the next month:
 
 ```bash
 curl -X POST https://loan-tracker.fly.dev/api/accrue-interest \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json"
 ```
 
@@ -55,32 +56,59 @@ Response:
 {
   "success": true,
   "interestTransactionsAdded": 3,
-  "currentAccruedInterest": 41.10,
-  "message": "Added 3 interest transaction(s) to history. Current month accrued interest: 41.10"
+  "message": "Added 3 missing interest transaction(s)."
 }
 ```
 
 ## Important Notes
 
-### ⚠️ Idempotency
+### ✅ Idempotency
 
-This API is **NOT idempotent**! Running it multiple times will:
-- Add duplicate interest transactions
-- Inflate your balance incorrectly
+This API is now **STRICTLY idempotent**. Running it multiple times is perfectly safe! 
 
-**Best Practice**: Run this once per month, on the 1st.
+**How it works**:
+- It calculates the "expected" interest transactions for your entire history.
+- It compares these against existing transactions in the database.
+- It only inserts entries for dates that are missing.
+- This prevents duplicates even if the API is called daily.
+
+### Timezone
+
+The calculation is anchored to **Australia/Melbourne** time. Compounding happens on the 1st of each month at 00:00 Melbourne time.
 
 ### When to Use
 
 **Good Times:**
 - ✅ At the start of a new month (to compound last month's interest)
-- ✅ When you want to see historical interest as transactions
-- ✅ Before exporting a report
+- ✅ Anytime! Since it's idempotent, you can run it daily to ensure your ledger is always up to date.
 
-**Bad Times:**
-- ❌ Multiple times in the same month
-- ❌ Mid-month (current month interest won't be added yet)
-- ❌ Every day (will create duplicates)
+## Automation
+
+The project is configured with a **GitHub Action** that runs daily to ensure interest is accrued automatically on the 1st of every month.
+
+### GitHub Action Setup
+
+1. Generate an **API Key** in the User Settings (or via API).
+2. Add the key to your GitHub Repository Secrets as `CRON_API_KEY`.
+3. The workflow in `.github/workflows/auto-accrue.yml` will handle the rest.
+
+### Manual Cron Job
+
+If you prefer a manual cron:
+```bash
+# Run daily at 1am Melbourne time
+0 15 * * * curl -X POST https://loan-tracker.fly.dev/api/accrue-interest \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Authentication
+
+### Browser
+If logged in via the browser, the session cookie is used automatically.
+
+### API / Scripts
+Use a **Better Auth API Key** passed in the `Authorization` header:
+`Authorization: Bearer <your_api_key>`
 
 ### What Gets Added
 

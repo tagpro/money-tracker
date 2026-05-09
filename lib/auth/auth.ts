@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { createClient } from "@libsql/client";
 import * as schema from "../db/schema";
+import { apiKey } from "@better-auth/api-key";
 
 // Create Turso client
 const tursoClient = createClient({
@@ -30,6 +31,11 @@ export const auth = betterAuth({
     "http://localhost:3000",
     "http://localhost:3001", 
     "https://loan-tracker.fly.dev"
+  ],
+  plugins: [
+    apiKey({
+      enableSessionForAPIKeys: true,
+    }),
   ],
 });
 
