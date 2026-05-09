@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS `type_date_idx` ON `transactions` (`type`,`date`);

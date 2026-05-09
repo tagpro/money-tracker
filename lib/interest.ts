@@ -253,9 +253,6 @@ export async function applyMissingInterest(targetDate: Date) {
   }
 
   const nonInterestTx = transactions.filter(t => t.type !== 'interest');
-  const existingInterestDates = new Set(
-    transactions.filter(t => t.type === 'interest').map(t => t.date)
-  );
 
   const { postings } = simulateInterestLedger(
     nonInterestTx,
@@ -266,13 +263,16 @@ export async function applyMissingInterest(targetDate: Date) {
 
   let added = 0;
   for (const posting of postings) {
-    if (!existingInterestDates.has(posting.date)) {
-      await db.insert(transactionsTable).values({
-        type: 'interest',
-        amount: posting.amount,
-        date: posting.date,
-        description: posting.description,
-      });
+    const result = await db.insert(transactionsTable).values({
+      type: 'interest',
+      amount: posting.amount,
+      date: posting.date,
+      description: posting.description,
+    }).onConflictDoNothing({
+      target: [transactionsTable.type, transactionsTable.date]
+    });
+
+    if (result.rowsAffected > 0) {
       added++;
     }
   }

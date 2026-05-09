@@ -36,6 +36,13 @@
       "when": 1778370164078,
       "tag": "0004_plain_chimera",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1778370333178,
+      "tag": "0005_faithful_hobgoblin",
+      "breakpoints": true
     }
   ]
 }
