@@ -12,19 +12,22 @@ Your loan tracker now has secure, invite-only authentication using:
 ```bash
 # Server is already running at http://localhost:3000
 
-# 1. Create your first user
-Visit: http://localhost:3000/signup
+# 1. Generate your first invite code
+node scripts/create-invite.js
+
+# 2. Create your first user using the invite code
+Visit: http://localhost:3000/signup?invite=<code-from-step-1>
 Email: your-email@example.com
 Password: YourPassword123
 Name: Your Name
 
-# 2. Sign in
+# 3. Sign in
 Visit: http://localhost:3000/login
 
-# 3. Access the loan tracker
+# 4. Access the loan tracker
 Visit: http://localhost:3000
 
-# 4. Create invites for friends
+# 5. Create invites for friends
 Visit: http://localhost:3000/invites
 ```
 
@@ -91,9 +94,14 @@ cat drizzle/0000_gorgeous_ikaris.sql | turso db shell <your-prod-db-name>
 fly deploy
 ```
 
-### 5. Create First Admin Account
+### 5. Create First Invite Code & Admin Account
 
-Visit `https://loan-tracker.fly.dev/signup` and create your account.
+```bash
+# Generate an invite code against your production database
+TURSO_DATABASE_URL=<your-prod-url> TURSO_AUTH_TOKEN=<your-prod-token> node scripts/create-invite.js
+```
+
+Visit `https://loan-tracker.fly.dev/signup?invite=<generated-code>` and create your account.
 **Important:** Do this immediately after deployment! The first user becomes admin.
 
 ### 6. Create Invites for Friends
@@ -117,10 +125,11 @@ Visit `https://loan-tracker.fly.dev/signup` and create your account.
 3. Enters name, email, password
 4. Account created and invite marked as used
 
-### First User (Special)
-- No invite code needed
-- Automatically becomes admin
-- Can create invites for everyone else
+### First User (Bootstrap)
+- Generate an invite code with `node scripts/create-invite.js`
+- Sign up using the generated code
+- First user automatically becomes admin
+- Can then create invites for everyone else from `/invites`
 
 ## Environment Variables
 
@@ -204,8 +213,8 @@ We use **Drizzle ORM** instead of Kysely because:
 ## Troubleshooting
 
 ### "No invite code" error on signup
-- First user doesn't need invite code
-- Make sure you're using `/signup?invite=XXX` for subsequent users
+- Generate one with `node scripts/create-invite.js`
+- Use `/signup?invite=<code>` or paste the code into the invite field
 
 ### "Unauthorized" when creating invites
 - Make sure you're signed in

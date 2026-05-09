@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS `api_key` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text,
+	`key` text NOT NULL,
+	`prefix` text,
+	`user_id` text NOT NULL,
+	`organization_id` text,
+	`expires_at` integer,
+	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+	`enabled` integer DEFAULT true,
+	`permissions` text,
+	`metadata` text,
+	`rate_limit_enabled` integer DEFAULT true,
+	`rate_limit_limit` integer,
+	`rate_limit_window` integer,
+	`remaining` integer,
+	`refill_interval` integer,
+	`refill_amount` integer,
+	`last_refill_at` integer,
+	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
+);

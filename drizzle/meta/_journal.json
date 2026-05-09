@@ -15,6 +15,34 @@
       "when": 1762126676387,
       "tag": "0001_spicy_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778324266330,
+      "tag": "0002_fast_fenris",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1778370116970,
+      "tag": "0003_ordinary_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1778370164078,
+      "tag": "0004_plain_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1778370333178,
+      "tag": "0005_faithful_hobgoblin",
+      "breakpoints": true
     }
   ]
 }

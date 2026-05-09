@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS `api_key_key_unique` ON `api_key` (`key`);

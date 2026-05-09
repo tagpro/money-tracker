@@ -6,16 +6,18 @@ A Next.js application to track loans with daily interest calculations, compounde
 
 - ✅ Add/remove money from the balance at any date
 - ✅ Calculate interest accrued on the balance to date
-- ✅ Monthly compounding with daily interest rate calculation
-- ✅ Change interest rate at any date
-- ✅ View balance at any given date, including accrued interest
-- ✅ View complete transaction history
-- ✅ Export data to CSV for record-keeping
-- ✅ SQLite database hosted on Turso
+- ✅ **Idempotent Monthly Compounding**: Accrue interest safely without duplicates.
+- ✅ **Automated Accrual**: Daily GitHub Actions ensure interest is compounded on the 1st of every month.
+- ✅ **Secure Authentication**: Invite-only system powered by Better Auth.
+- ✅ **API Key Support**: Generate keys for automated scripts or external integrations.
+- ✅ View balance at any given date, including accrued interest.
+- ✅ View complete transaction history.
+- ✅ Export data to CSV for record-keeping.
+- ✅ SQLite database hosted on Turso or local file.
 
 ## Prerequisites
 
-- Node.js 18+ installed
+- [Bun](https://bun.sh) installed (recommended)
 - A Turso account (optional - can use local SQLite)
 
 ## Setup Instructions
@@ -23,7 +25,7 @@ A Next.js application to track loans with daily interest calculations, compounde
 ### 1. Install Dependencies
 
 ```bash
-npm install
+bun install
 ```
 
 ### 2. Configure Database
@@ -31,137 +33,46 @@ npm install
 #### Option A: Use Turso (Recommended for production)
 
 1. Sign up for a free account at [turso.tech](https://turso.tech)
-2. Create a new database using the Turso CLI:
-
-```bash
-turso db create loan-tracker
-```
-
-3. Get your database URL and auth token:
-
-```bash
-turso db show loan-tracker
-turso db tokens create loan-tracker
-```
-
-4. Create a `.env.local` file in the root directory:
-
-```env
-TURSO_DATABASE_URL=libsql://your-database-url.turso.io
-TURSO_AUTH_TOKEN=your-auth-token
-```
+2. Create a new database: `turso db create loan-tracker`
+3. Apply migrations: `cat drizzle/0000_consolidated_all_tables.sql | turso db shell loan-tracker`
+4. Set `.env.local`:
+   ```env
+   TURSO_DATABASE_URL=libsql://your-database.turso.io
+   TURSO_AUTH_TOKEN=your-token
+   ```
 
 #### Option B: Use Local SQLite
 
-If you don't set the environment variables, the app will automatically create a local `local.db` file in the project root.
+```bash
+cat drizzle/0000_consolidated_all_tables.sql | sqlite3 local.db
+```
 
 ### 3. Run the Development Server
 
 ```bash
-npm run dev
+bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+### 4. Create Your First Account
 
-## Usage Guide
+The first user to sign up becomes the admin. Open [http://localhost:3000/signup](http://localhost:3000/signup) to create your account. Subsequent users will require an invite code.
 
-### Adding Transactions
+## Automation & API Keys
 
-1. Select transaction type (Deposit or Withdrawal)
-2. Enter the amount
-3. Select the date
-4. Add an optional description
-5. Click "Add Transaction"
+This project uses a GitHub Action to automate interest accrual on the 1st of every month.
 
-### Setting Interest Rates
-
-1. Enter the annual interest rate as a percentage (e.g., 5.5 for 5.5%)
-2. Select the effective date from which this rate applies
-3. Click "Set Interest Rate"
-
-**Note:** Interest is calculated daily based on the annual rate (rate/365) and compounded monthly. At the end of each month, accrued interest is added to the principal.
-
-### Viewing Balance
-
-- The current balance is displayed at the top of the page
-- You can select any date to see the balance as of that date
-- The display shows:
-  - **Total Balance**: Principal + Accrued Interest
-  - **Principal**: The base amount (deposits - withdrawals + previous compounded interest)
-  - **Accrued Interest**: Interest earned in the current month (not yet compounded)
-
-### Exporting Data
-
-Click the "Export CSV" button to download a CSV file containing all transactions and interest rate history.
-
-## Database Schema
-
-### Transactions Table
-- `id`: Auto-increment primary key
-- `type`: 'deposit', 'withdrawal', or 'interest'
-- `amount`: Transaction amount
-- `date`: Transaction date
-- `description`: Optional description
-- `created_at`: Timestamp of record creation
-
-### Interest Rates Table
-- `id`: Auto-increment primary key
-- `rate`: Annual interest rate (percentage)
-- `effective_date`: Date from which the rate is effective
-- `created_at`: Timestamp of record creation
-
-### Balance Snapshots Table
-- `id`: Auto-increment primary key
-- `date`: Date of snapshot
-- `balance`: Balance amount
-- `created_at`: Timestamp of record creation
-
-## Interest Calculation Logic
-
-The interest calculation follows these rules:
-
-1. **Daily Calculation**: Interest is calculated daily using the formula:
-   ```
-   Daily Interest = (Current Balance × Annual Rate / 100) / 365
-   ```
-
-2. **Monthly Compounding**: At the end of each month, all accrued interest is added to the principal:
-   ```
-   New Principal = Previous Principal + Accrued Interest
-   ```
-
-3. **Rate Changes**: When the interest rate changes, the new rate applies from the effective date forward. Previous calculations remain unchanged.
-
-## Deployment
-
-### Build for Production
-
-```bash
-npm run build
-npm start
-```
-
-### Deploy to Vercel
-
-1. Push your code to GitHub
-2. Import the project to Vercel
-3. Add your environment variables (TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
-4. Deploy
+1. Generate an **API Key** in the User Settings.
+2. Add the key to your GitHub Secrets as `CRON_API_KEY`.
+3. The workflow in `.github/workflows/auto-accrue.yml` handles the daily check.
 
 ## Technology Stack
 
-- **Framework**: Next.js 16 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: SQLite via Turso (@libsql/client)
-- **Export**: CSV generation
-
-## Security Notes
-
-- This is designed for personal use without authentication
-- If deploying publicly, consider adding authentication (e.g., NextAuth.js)
-- Keep your Turso auth token secure and never commit it to version control
-- The `.env.local` file is gitignored by default
+- **Framework**: Next.js 16 (App Router)
+- **Runtime**: Bun
+- **ORM**: Drizzle ORM
+- **Auth**: Better Auth (with API Key plugin)
+- **Database**: SQLite (via Turso or local file)
+- **Deployment**: Fly.io
 
 ## Contributing
 

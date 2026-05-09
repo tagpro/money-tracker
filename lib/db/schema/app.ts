@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const transactions = sqliteTable("transactions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -8,7 +8,9 @@ export const transactions = sqliteTable("transactions", {
   date: text("date").notNull(),
   description: text("description"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => ({
+  typeDateIdx: uniqueIndex("type_date_idx").on(table.type, table.date),
+}));
 
 export const interestRates = sqliteTable("interest_rates", {
   id: integer("id").primaryKey({ autoIncrement: true }),

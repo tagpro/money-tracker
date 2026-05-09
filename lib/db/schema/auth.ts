@@ -68,3 +68,32 @@ export const verification = sqliteTable("verification", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+export const apiKey = sqliteTable("api_key", {
+  id: text("id").primaryKey(),
+  name: text("name"),
+  key: text("key").notNull().unique(),
+  prefix: text("prefix"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id"),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+    .$onUpdate(() => new Date())
+    .notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true),
+  permissions: text("permissions"),
+  metadata: text("metadata"),
+  rateLimitEnabled: integer("rate_limit_enabled", { mode: "boolean" }).default(false),
+  rateLimitLimit: integer("rate_limit_limit").default(100).notNull(),
+  rateLimitWindow: integer("rate_limit_window").default(60).notNull(),
+  remaining: integer("remaining"),
+  refillInterval: integer("refill_interval"),
+  refillAmount: integer("refill_amount"),
+  lastRefillAt: integer("last_refill_at", { mode: "timestamp_ms" }),
+});

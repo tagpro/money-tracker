@@ -1,0 +1,19 @@
+name: Monthly Interest Accrual
+
+on:
+  schedule:
+    # Runs at 15:00 UTC every day
+    # This corresponds to 01:00 or 02:00 Australia/Melbourne time
+    - cron: '0 15 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  accrue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Accrual API
+        run: |
+          curl -X POST https://loan-tracker.fly.dev/api/accrue-interest \
+               -H "Authorization: Bearer ${{ secrets.CRON_API_KEY }}" \
+               -H "Content-Type: application/json" \
+               -d '{}'
