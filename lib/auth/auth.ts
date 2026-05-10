@@ -22,6 +22,7 @@ const adapter = drizzleAdapter(db, {
 
 export const auth = betterAuth({
   database: adapter,
+  baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,

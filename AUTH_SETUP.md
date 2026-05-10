@@ -38,13 +38,17 @@ ADMIN_EMAILS=your-email@example.com,friend@example.com
 
 ### 3. Set App URL
 
+Better Auth needs a base URL for callbacks and redirects.
+
 For production:
 ```bash
+fly secrets set BETTER_AUTH_URL="https://loan-tracker.fly.dev" --app loan-tracker
 fly secrets set NEXT_PUBLIC_APP_URL="https://loan-tracker.fly.dev" --app loan-tracker
 ```
 
 For local development (.env.local):
 ```
+BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -174,6 +178,7 @@ echo "ADMIN_EMAILS=your-email@example.com" >> .env.local
 
 4. Set app URL:
 ```bash
+echo "BETTER_AUTH_URL=http://localhost:3000" >> .env.local
 echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> .env.local
 ```
 
@@ -200,6 +205,7 @@ SECRET=$(openssl rand -base64 32)
 fly secrets set \
   BETTER_AUTH_SECRET="$SECRET" \
   ADMIN_EMAILS="your-email@example.com" \
+  BETTER_AUTH_URL="https://loan-tracker.fly.dev" \
   NEXT_PUBLIC_APP_URL="https://loan-tracker.fly.dev" \
   --app loan-tracker
 ```

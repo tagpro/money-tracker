@@ -73,6 +73,7 @@ echo "Generated secret: $SECRET"
 ```bash
 fly secrets set \
   BETTER_AUTH_SECRET="$SECRET" \
+  BETTER_AUTH_URL="https://loan-tracker.fly.dev" \
   NEXT_PUBLIC_APP_URL="https://loan-tracker.fly.dev" \
   ADMIN_EMAILS="your-email@example.com" \
   --app loan-tracker
@@ -138,6 +139,7 @@ Visit `https://loan-tracker.fly.dev/signup?invite=<generated-code>` and create y
 TURSO_DATABASE_URL=libsql://money-tracker-dev-tagpro.aws-ap-northeast-1.turso.io
 TURSO_AUTH_TOKEN=<your-token>
 BETTER_AUTH_SECRET=<your-better-auth-secret>
+BETTER_AUTH_URL=http://localhost:3000
 ADMIN_EMAILS=your-email@example.com
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -145,6 +147,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ### Production (Fly.io Secrets)
 ```bash
 BETTER_AUTH_SECRET=<generated-secret>
+BETTER_AUTH_URL=https://loan-tracker.fly.dev
 NEXT_PUBLIC_APP_URL=https://loan-tracker.fly.dev
 ADMIN_EMAILS=<comma-separated-emails>
 ```
