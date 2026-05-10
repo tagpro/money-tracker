@@ -21,6 +21,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
+# Bundle the migration script to include all dependencies
+RUN bun build scripts/migrate.ts --outfile=scripts/migrate.js --target=bun --bundle
+
 RUN bun run build
 
 # Production image, copy all the files and run next
@@ -42,7 +45,7 @@ COPY --from=builder --chown=bun:bun /app/.next/standalone ./
 COPY --from=builder --chown=bun:bun /app/package.json ./package.json
 COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 COPY --from=builder --chown=bun:bun /app/drizzle ./drizzle
-COPY --from=builder --chown=bun:bun /app/scripts ./scripts
+COPY --from=builder --chown=bun:bun /app/scripts/migrate.js ./scripts/migrate.js
 
 # Start the application using bun
 CMD ["bun", "server.js"]

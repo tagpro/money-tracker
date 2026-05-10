@@ -12,7 +12,7 @@
     "test:watch": "bun test --watch",
     "test:coverage": "jest --coverage",
     "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bun scripts/migrate.ts",
+    "db:migrate": "if [ -f scripts/migrate.js ]; then bun scripts/migrate.js; else bun scripts/migrate.ts; fi",
     "db:studio": "bunx drizzle-kit studio",
     "add-accrued-interest": "bun scripts/add-accrued-interest.ts",
     "docker:build": "docker build --build-arg NEXT_PUBLIC_APP_URL=http://localhost:8080 -t loan-tracker .",

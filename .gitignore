@@ -50,6 +50,9 @@ next-env.d.ts
 *.backup*
 local.db
 
+# Build artifacts
+scripts/migrate.js
+
 # Fly.io
 fly.toml.backup
 .fly/
