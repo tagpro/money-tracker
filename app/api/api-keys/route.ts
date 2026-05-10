@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { apiKey } from '@/lib/db/schema/auth';
+import { apikey } from '@/lib/db/schema/auth';
 import { desc, eq, and } from 'drizzle-orm';
 import { auth } from '@/lib/auth/auth';
 
@@ -17,16 +17,16 @@ export async function GET(request: NextRequest) {
 
     const result = await db
       .select({
-        id: apiKey.id,
-        name: apiKey.name,
-        prefix: apiKey.prefix,
-        createdAt: apiKey.createdAt,
-        expiresAt: apiKey.expiresAt,
-        enabled: apiKey.enabled,
+        id: apikey.id,
+        name: apikey.name,
+        prefix: apikey.prefix,
+        createdAt: apikey.createdAt,
+        expiresAt: apikey.expiresAt,
+        enabled: apikey.enabled,
       })
-      .from(apiKey)
-      .where(eq(apiKey.userId, session.user.id))
-      .orderBy(desc(apiKey.createdAt));
+      .from(apikey)
+      .where(eq(apikey.referenceId, session.user.id))
+      .orderBy(desc(apikey.createdAt));
 
     return NextResponse.json(result);
   } catch (error) {
@@ -94,10 +94,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing API Key ID' }, { status: 400 });
     }
 
-    await db.delete(apiKey).where(
+    await db.delete(apikey).where(
       and(
-        eq(apiKey.id, id),
-        eq(apiKey.userId, session.user.id)
+        eq(apikey.id, id),
+        eq(apikey.referenceId, session.user.id)
       )
     );
 
@@ -107,3 +107,4 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete API key' }, { status: 500 });
   }
 }
+
