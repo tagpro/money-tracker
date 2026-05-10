@@ -1,7 +1,7 @@
 import { Transaction, InterestRate } from './types';
 import { db } from './db';
 import { transactions as transactionsTable, interestRates as interestRatesTable } from './db/schema/app';
-import { asc } from 'drizzle-orm';
+import { asc, sql } from 'drizzle-orm';
 
 // Utility to parse a date string (YYYY-MM-DD) into a Date object at local midnight
 export function parseDate(dateStr: string): Date {
