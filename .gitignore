@@ -44,10 +44,10 @@ lerna-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# SQLite
-*.db
-*.db-shm
-*.db-wal
+# SQLite and Backups
+*.db*
+*.sqlite*
+*.backup*
 local.db
 
 # Fly.io

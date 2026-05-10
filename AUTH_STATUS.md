@@ -118,7 +118,7 @@ Already configured in `.env.local`:
 ```
 TURSO_DATABASE_URL=<your-turso-url>
 TURSO_AUTH_TOKEN=<your-turso-token>
-BETTER_AUTH_SECRET=Lvs+6CjIL5J8IGcRvGlmFPR1vDGyLVW5ttCDU3SgtaQ=
+BETTER_AUTH_SECRET=<your-better-auth-secret>
 ADMIN_EMAILS=findjsk@gmail.com,prodip0609@gmail.com
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```

@@ -137,7 +137,7 @@ Visit `https://loan-tracker.fly.dev/signup?invite=<generated-code>` and create y
 ```bash
 TURSO_DATABASE_URL=libsql://money-tracker-dev-tagpro.aws-ap-northeast-1.turso.io
 TURSO_AUTH_TOKEN=<your-token>
-BETTER_AUTH_SECRET=Lvs+6CjIL5J8IGcRvGlmFPR1vDGyLVW5ttCDU3SgtaQ=
+BETTER_AUTH_SECRET=<your-better-auth-secret>
 ADMIN_EMAILS=your-email@example.com
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
