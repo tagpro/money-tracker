@@ -96,13 +96,13 @@ export default function InvitesPage() {
   }
 
   return (
-    <div className="min-h-screen p-8 bg-gray-50">
+    <div className="min-h-screen p-4 sm:p-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Invite Management</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Invite Management</h1>
           <a
             href="/"
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            className="w-full sm:w-auto text-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
           >
             Back to App
           </a>
@@ -110,7 +110,7 @@ export default function InvitesPage() {
 
         {/* Create Invite Form */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Create New Invite</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900">Create New Invite</h2>
           
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -119,11 +119,11 @@ export default function InvitesPage() {
           )}
 
           {success && (
-            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded break-all">
               {success}
               <button
                 onClick={() => navigator.clipboard.writeText(success.split(': ')[1])}
-                className="ml-2 text-sm underline"
+                className="ml-2 text-sm underline font-medium"
               >
                 Copy URL
               </button>
@@ -143,7 +143,7 @@ export default function InvitesPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="friend@example.com"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   If specified, only this email can use the invite
                 </p>
               </div>
@@ -166,7 +166,7 @@ export default function InvitesPage() {
             <button
               type="submit"
               disabled={creating}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
             >
               {creating ? 'Creating...' : 'Create Invite'}
             </button>
@@ -175,8 +175,53 @@ export default function InvitesPage() {
 
         {/* Invites List */}
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-semibold mb-4">All Invites</h2>
-          <div className="overflow-x-auto">
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900">All Invites</h2>
+          
+          {/* Mobile View: Cards */}
+          <div className="md:hidden space-y-4">
+            {invites.map((invite) => {
+              const isExpired = new Date(invite.expires_at) < new Date();
+              const isUsed = !!invite.used_by;
+
+              return (
+                <div key={invite.id} className="p-4 border border-gray-100 rounded-lg bg-gray-50 shadow-sm">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-mono text-xs text-gray-500">
+                      {invite.code.substring(0, 8)}...
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        isUsed
+                          ? 'bg-green-100 text-green-800'
+                          : isExpired
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {isUsed ? 'Used' : isExpired ? 'Expired' : 'Active'}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {invite.email || 'Open to anyone'}
+                    </div>
+                    {isUsed && (
+                      <div className="text-xs text-gray-600">
+                        Used by: {invite.used_by}
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs text-gray-500 pt-1">
+                      <span>Created: {new Date(invite.created_at).toLocaleDateString()}</span>
+                      <span>Expires: {new Date(invite.expires_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop View: Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -222,10 +267,10 @@ export default function InvitesPage() {
                 })}
               </tbody>
             </table>
-            {invites.length === 0 && (
-              <div className="text-center py-8 text-gray-500">No invites yet</div>
-            )}
           </div>
+          {invites.length === 0 && (
+            <div className="text-center py-8 text-gray-500">No invites yet</div>
+          )}
         </div>
       </div>
     </div>

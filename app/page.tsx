@@ -248,34 +248,34 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 sm:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">Loan Tracker</h1>
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Loan Tracker</h1>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <a
               href="/invites"
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              className="flex-1 sm:flex-none text-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base"
             >
               Manage Invites
             </a>
             <button
               onClick={handleRecalculate}
               disabled={recalcLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm sm:text-base"
               title="Verify and correct interest calculations"
             >
               {recalcLoading ? 'Checking...' : 'Re-calculate Interest'}
             </button>
             <button
               onClick={handleExport}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm sm:text-base"
             >
               Export CSV
             </button>
             <button
               onClick={handleSignOut}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              className="flex-1 sm:flex-none px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm sm:text-base"
             >
               Sign Out
             </button>
@@ -439,14 +439,58 @@ export default function Home() {
         {/* Transaction History */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-semibold mb-4 text-gray-900">Transaction History</h2>
-          <div className="overflow-x-auto">
+          
+          {/* Mobile view: Cards */}
+          <div className="md:hidden space-y-4">
+            {transactions.map((transaction) => (
+              <div key={transaction.id} className="p-4 border border-gray-100 rounded-lg bg-gray-50 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-semibold text-gray-500">
+                    {new Date(transaction.date).toLocaleDateString()}
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      transaction.type === 'deposit'
+                        ? 'bg-green-100 text-green-800'
+                        : transaction.type === 'withdrawal'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {transaction.type}
+                  </span>
+                </div>
+                <div className="flex justify-between items-end">
+                  <div className="text-sm text-gray-600 max-w-[60%] truncate">
+                    {transaction.description || '-'}
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">
+                    ${transaction.amount.toFixed(2)}
+                  </div>
+                </div>
+                {transaction.type !== 'interest' && (
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={() => handleDeleteTransaction(transaction.id!)}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop view: Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-gray-700">Date</th>
                   <th className="text-left py-3 px-4 text-gray-700">Type</th>
-                  <th className="text-right py-3 px-4 text-gray-700">Amount</th>
                   <th className="text-left py-3 px-4 text-gray-700">Description</th>
+                  <th className="text-right py-3 px-4 text-gray-700">Amount</th>
                   <th className="text-right py-3 px-4 text-gray-700">Action</th>
                 </tr>
               </thead>
@@ -469,10 +513,10 @@ export default function Home() {
                         {transaction.type}
                       </span>
                     </td>
+                    <td className="py-3 px-4 text-gray-600">{transaction.description || '-'}</td>
                     <td className="py-3 px-4 text-right font-mono">
                       ${transaction.amount.toFixed(2)}
                     </td>
-                    <td className="py-3 px-4 text-gray-600">{transaction.description || '-'}</td>
                     <td className="py-3 px-4 text-right">
                       {transaction.type !== 'interest' && (
                         <button
@@ -487,10 +531,10 @@ export default function Home() {
                 ))}
               </tbody>
             </table>
-            {transactions.length === 0 && (
-              <div className="text-center py-8 text-gray-500">No transactions yet</div>
-            )}
           </div>
+          {transactions.length === 0 && (
+            <div className="text-center py-8 text-gray-500">No transactions yet</div>
+          )}
         </div>
       </div>
 
